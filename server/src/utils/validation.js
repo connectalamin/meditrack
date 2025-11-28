@@ -1,0 +1,81 @@
+import { z } from 'zod';
+
+// Auth schemas
+export const registerSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  displayName: z.string().optional(),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+// Appointment schemas
+export const appointmentSchema = z.object({
+  doctor: z.string().min(1, 'Doctor name is required'),
+  specialty: z.string().optional(),
+  location: z.string().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  time: z.string().optional(),
+  familyMemberId: z.string().optional(),
+  familyMemberName: z.string().optional(),
+});
+
+export const updateAppointmentSchema = appointmentSchema.partial();
+
+// Family member schemas
+export const familyMemberSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  relation: z.string().optional(),
+  age: z.string().optional(),
+  lastDoctorVisit: z.string().optional(),
+});
+
+export const updateFamilyMemberSchema = familyMemberSchema.partial();
+
+// Medication schemas
+export const medicationSchema = z.object({
+  name: z.string().min(1, 'Medication name is required'),
+  strength: z.string().optional(),
+  price: z.number().min(0).optional(),
+  packSize: z.number().min(1).optional(),
+  unit: z.string().optional(),
+});
+
+export const updateMedicationSchema = medicationSchema.partial();
+
+// Report schemas
+export const reportSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  type: z.enum(['PDF', 'Scanned Image']).optional(),
+  category: z.enum(['Report', 'Prescription']).optional(),
+  familyMemberId: z.string().optional(),
+  familyMemberName: z.string().optional(),
+});
+
+export const updateReportSchema = reportSchema.partial();
+
+// Health data schemas
+export const healthDataSchema = z.object({
+  type: z.string().min(1, 'Type is required'),
+  value: z.string().min(1, 'Value is required'),
+  unit: z.string().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+});
+
+export const updateHealthDataSchema = healthDataSchema.partial();
+
+// Plan schemas
+export const planSchema = z.object({
+  medicationId: z.string().min(1, 'Medication ID is required'),
+  medicationName: z.string().min(1, 'Medication name is required'),
+  dosage: z.number().min(1),
+  frequency: z.number().min(1),
+  price: z.number().min(0),
+  packSize: z.number().min(1),
+});
+
+export const updatePlanSchema = planSchema.partial();
+

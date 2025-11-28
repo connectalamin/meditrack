@@ -1,0 +1,66 @@
+# Cursor Rules for MediTrack Project
+
+## MCP Tools Usage
+
+### Context7 MCP
+- **ALWAYS** use Context7 MCP (`mcp_Context7_resolve-library-id` and `mcp_Context7_get-library-docs`) when:
+  - Working with external libraries or frameworks
+  - Need up-to-date documentation for React, Express, Prisma, Zod, or any other library
+  - Looking for code examples or API references
+  - Need to understand library-specific patterns or best practices
+- **Workflow**: First resolve the library ID, then fetch documentation with the appropriate mode (`code` for API references, `info` for conceptual guides)
+
+### Firecrawl MCP
+- **Use Firecrawl MCP** (`mcp_firecrawl_*`) when:
+  - Need to scrape web content or documentation from external websites
+  - Need to search the web for current information
+  - Need to extract structured data from web pages
+  - Need to crawl or map websites
+- **Preference**: Use `firecrawl_search` for web searches, `firecrawl_scrape` for single pages, `firecrawl_crawl` for multiple pages
+
+### Browser Automation (Chrome DevTools MCP - Built-in)
+- **ALWAYS use the built-in Chrome DevTools MCP** (`mcp_cursor-ide-browser_*`) for browser testing and automation
+- **This is the preferred and superior browser automation tool** - it's integrated directly into Cursor and provides:
+  - Accessibility snapshots (better than screenshots for understanding page structure)
+  - Console message inspection
+  - Network request monitoring
+  - Full DOM interaction (click, type, navigate, etc.)
+  - Screenshot capabilities
+- **Use when**:
+  - User explicitly requests browser testing or automation
+  - Need to test UI interactions, forms, or user flows
+  - Need to verify that features work in the actual browser
+  - Need to take screenshots or check console errors
+  - Need to interact with the application as a user would
+  - Debugging frontend issues
+  - Verifying responsive design
+- **Workflow**: 
+  1. Navigate to the application URL using `browser_navigate`
+  2. Take snapshots using `browser_snapshot` to see the current state
+  3. Perform actions (click, type, hover, etc.) using appropriate browser tools
+  4. Verify results by taking another snapshot
+  5. Check console messages with `browser_console_messages` if needed
+  6. Check network requests with `browser_network_requests` if needed
+  7. Take screenshots with `browser_take_screenshot` for documentation
+
+## General Guidelines
+
+1. **Always prefer MCP tools** over manual web searches or documentation lookups when available
+2. **Test in browser** when user requests it or when implementing UI features that need verification - use the built-in Chrome DevTools MCP
+3. **Use Context7 first** for library documentation before searching elsewhere
+4. **Use Firecrawl** for web scraping or when you need current web information
+5. **Use browser automation (Chrome DevTools MCP)** for:
+   - End-to-end testing and UI verification
+   - Debugging frontend issues
+   - Verifying user flows
+   - Taking screenshots for documentation
+   - Checking console errors and network requests
+
+## Project-Specific Notes
+
+- This is a React + Express + Prisma application
+- Frontend uses Vite, Tailwind CSS, and React Context API
+- Backend uses Express, Prisma ORM, JWT authentication
+- Always check for existing API endpoints before creating new ones
+- Follow the existing code patterns and structure
+

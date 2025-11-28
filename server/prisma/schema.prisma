@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String?
+  displayName String?
+  googleId    String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  devices       Device[]
+  appointments  Appointment[]
+  familyMembers FamilyMember[]
+  medications   Medication[]
+  reports       Report[]
+
+  @@map("users")
+}
+
+model Device {
+  id          String   @id @default(cuid())
+  userId      String
+  deviceToken String   @unique
+  deviceName  String
+  lastActive  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("devices")
+}
+
+model Appointment {
+  id               String   @id @default(cuid())
+  userId           String
+  doctor           String
+  specialty        String?
+  location         String?
+  date             String
+  time             String?
+  familyMemberId   String?
+  familyMemberName String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("appointments")
+}
+
+model FamilyMember {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  relation        String?
+  age             String?
+  lastDoctorVisit String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  healthData HealthData[]
+  plans      Plan[]
+
+  @@map("family_members")
+}
+
+model Medication {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  strength  String?
+  price     Float    @default(0)
+  packSize Int      @default(1)
+  unit      String   @default("tablets")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("medications")
+}
+
+model Report {
+  id               String   @id @default(cuid())
+  userId           String
+  title            String
+  date             DateTime @default(now())
+  type             String   @default("PDF")
+  category         String   @default("Report")
+  familyMemberId   String?
+  familyMemberName String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+model HealthData {
+  id             String   @id @default(cuid())
+  familyMemberId String
+  type           String
+  value          String
+  unit           String?
+  date           String
+  createdAt      DateTime @default(now())
+
+  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+
+  @@map("health_data")
+}
+
+model Plan {
+  id             String   @id @default(cuid())
+  familyMemberId String
+  medicationId   String
+  medicationName String
+  dosage         Int
+  frequency      Int
+  price          Float
+  packSize       Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+
+  @@map("plans")
+}
+
