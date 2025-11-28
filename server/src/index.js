@@ -13,6 +13,9 @@ import medicationRoutes from './routes/medications.js';
 import reportRoutes from './routes/reports.js';
 import healthDataRoutes from './routes/healthData.js';
 import planRoutes from './routes/plans.js';
+import purchaseListRoutes from './routes/purchaseList.js';
+import ocrRoutes from './routes/ocr.js';
+import analyticsRoutes from './routes/analytics.js';
 
 dotenv.config();
 
@@ -37,6 +40,13 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve uploaded files
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+app.use('/uploads', express.static(join(__dirname, '../uploads')));
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -54,6 +64,9 @@ app.use('/api/medications', medicationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/health-data', healthDataRoutes);
 app.use('/api/plans', planRoutes);
+app.use('/api/purchase-list', purchaseListRoutes);
+app.use('/api/ocr', ocrRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler
 app.use((req, res) => {

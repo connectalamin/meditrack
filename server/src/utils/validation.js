@@ -49,9 +49,11 @@ export const updateMedicationSchema = medicationSchema.partial();
 // Report schemas
 export const reportSchema = z.object({
   title: z.string().min(1, 'Title is required'),
+  date: z.union([z.string().datetime(), z.date()]).optional(),
   type: z.enum(['PDF', 'Scanned Image']).optional(),
   category: z.enum(['Report', 'Prescription']).optional(),
-  familyMemberId: z.string().optional(),
+  fileUrl: z.string().optional(),
+  familyMemberId: z.string().nullable().optional(),
   familyMemberName: z.string().optional(),
 });
 
@@ -78,4 +80,14 @@ export const planSchema = z.object({
 });
 
 export const updatePlanSchema = planSchema.partial();
+
+// Purchase list item schemas
+export const purchaseListItemSchema = z.object({
+  medicationId: z.string().optional(),
+  medicationName: z.string().min(1, 'Medication name is required'),
+  quantity: z.number().min(1, 'Quantity must be at least 1'),
+  price: z.number().min(0, 'Price must be 0 or greater'),
+});
+
+export const updatePurchaseListItemSchema = purchaseListItemSchema.partial();
 

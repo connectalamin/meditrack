@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { Database, Users, FileText, ShoppingBag, Calculator, ArrowRight } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { 
+  useMedications, 
+  useFamilyMembers, 
+  useReports,
+  useAllPlans 
+} from '../../hooks/useData';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -9,8 +14,10 @@ import PurchaseList from './PurchaseList';
 
 const OverviewTab = () => {
   const [showPurchaseList, setShowPurchaseList] = useState(false);
-  const appContext = useApp();
-  const { medications, family, reports, plans } = appContext;
+  const { data: medications = [] } = useMedications();
+  const { data: family = [] } = useFamilyMembers();
+  const { data: reports = [] } = useReports();
+  const { data: plans = {} } = useAllPlans();
 
   const stats = {
     meds: medications.length,

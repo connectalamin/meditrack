@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Chrome } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 
 const AuthForms = ({ view, setView }) => {
-  const { login, register, googleLogin } = useApp();
+  const { login, register, googleLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');

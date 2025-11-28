@@ -149,6 +149,17 @@ export const authAPI = {
     return apiRequest('/auth/me');
   },
 
+  getLinkedAccounts: async () => {
+    return apiRequest('/auth/linked-accounts');
+  },
+
+  removeLinkedAccount: async (accountId) => {
+    return apiRequest('/auth/remove-linked-account', {
+      method: 'POST',
+      body: JSON.stringify({ accountId }),
+    });
+  },
+
   logout: async () => {
     try {
       await apiRequest('/auth/logout', { method: 'POST' });
@@ -159,6 +170,14 @@ export const authAPI = {
 
   getDevices: async () => {
     return apiRequest('/auth/devices');
+  },
+
+  joinFamily: async (referralId) => {
+    const response = await apiRequest('/auth/join-family', {
+      method: 'POST',
+      body: JSON.stringify({ referralId }),
+    });
+    return response;
   },
 };
 
@@ -253,24 +272,101 @@ export const reportsAPI = {
     return response.reports || [];
   },
 
-  create: async (report) => {
-    const response = await apiRequest('/reports', {
-      method: 'POST',
-      body: JSON.stringify(report),
+  create: async (report, file = null) => {
+    const { accessToken } = getTokens();
+    const formData = new FormData();
+    
+    // Add file if provided
+    if (file) {
+      formData.append('file', file);
+    }
+    
+    // Add other fields
+    Object.keys(report).forEach(key => {
+      if (report[key] !== null && report[key] !== undefined) {
+        formData.append(key, report[key]);
+      }
     });
-    return response.report;
+
+    const headers = {
+      'Authorization': `Bearer ${accessToken}`,
+    };
+
+    const response = await fetch(`${API_BASE_URL}/reports`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.message || 'Request failed');
+    }
+
+    return response.json().then(data => data.report);
   },
 
-  update: async (id, updates) => {
-    const response = await apiRequest(`/reports/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
+  update: async (id, updates, file = null) => {
+    const { accessToken } = getTokens();
+    const formData = new FormData();
+    
+    // Add file if provided
+    if (file) {
+      formData.append('file', file);
+    }
+    
+    // Add other fields
+    Object.keys(updates).forEach(key => {
+      if (updates[key] !== null && updates[key] !== undefined) {
+        formData.append(key, updates[key]);
+      }
     });
-    return response.report;
+
+    const headers = {
+      'Authorization': `Bearer ${accessToken}`,
+    };
+
+    const response = await fetch(`${API_BASE_URL}/reports/${id}`, {
+      method: 'PUT',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.message || 'Request failed');
+    }
+
+    return response.json().then(data => data.report);
   },
 
   delete: async (id) => {
     await apiRequest(`/reports/${id}`, { method: 'DELETE' });
+  },
+};
+
+// OCR API
+export const ocrAPI = {
+  process: async (imageFile) => {
+    const { accessToken } = getTokens();
+    
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const response = await fetch(`${API_BASE_URL}/ocr/process`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'OCR processing failed' }));
+      throw new Error(error.message || 'OCR processing failed');
+    }
+
+    return response.json();
   },
 };
 
@@ -327,6 +423,42 @@ export const plansAPI = {
 
   delete: async (familyMemberId, id) => {
     await apiRequest(`/plans/${familyMemberId}/${id}`, { method: 'DELETE' });
+  },
+};
+
+// Analytics API
+export const analyticsAPI = {
+  getAIAnalytics: async () => {
+    const response = await apiRequest('/analytics/ai');
+    return response.data;
+  },
+};
+
+// Purchase List API
+export const purchaseListAPI = {
+  getAll: async () => {
+    const response = await apiRequest('/purchase-list');
+    return response.purchaseListItems || [];
+  },
+
+  create: async (item) => {
+    const response = await apiRequest('/purchase-list', {
+      method: 'POST',
+      body: JSON.stringify(item),
+    });
+    return response.purchaseListItem;
+  },
+
+  update: async (id, updates) => {
+    const response = await apiRequest(`/purchase-list/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    return response.purchaseListItem;
+  },
+
+  delete: async (id) => {
+    await apiRequest(`/purchase-list/${id}`, { method: 'DELETE' });
   },
 };
 

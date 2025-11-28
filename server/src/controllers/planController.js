@@ -4,11 +4,34 @@ export const getPlans = async (req, res, next) => {
   try {
     const { familyMemberId } = req.params;
 
-    // Verify family member belongs to user
+    // Get user's linked family ID
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { linkedFamilyId: true }
+    });
+
+    // Check if family member belongs to current user or linked family
+    const userIds = [req.user.id];
+    if (user?.linkedFamilyId) {
+      userIds.push(user.linkedFamilyId);
+    }
+
+    // Also check if any other user has linked to the current user (bidirectional)
+    const usersLinkedToMe = await prisma.user.findMany({
+      where: { linkedFamilyId: req.user.id },
+      select: { id: true }
+    });
+    
+    usersLinkedToMe.forEach(u => {
+      if (!userIds.includes(u.id)) {
+        userIds.push(u.id);
+      }
+    });
+
     const familyMember = await prisma.familyMember.findFirst({
       where: {
         id: familyMemberId,
-        userId: req.user.id
+        userId: { in: userIds }
       }
     });
 
@@ -31,7 +54,7 @@ export const createPlan = async (req, res, next) => {
   try {
     const { familyMemberId } = req.params;
 
-    // Verify family member belongs to user
+    // Verify family member belongs to current user (not linked family - read-only)
     const familyMember = await prisma.familyMember.findFirst({
       where: {
         id: familyMemberId,
@@ -60,7 +83,7 @@ export const updatePlan = async (req, res, next) => {
   try {
     const { id, familyMemberId } = req.params;
 
-    // Verify family member belongs to user
+    // Verify family member belongs to current user (not linked family - read-only)
     const familyMember = await prisma.familyMember.findFirst({
       where: {
         id: familyMemberId,
@@ -90,7 +113,7 @@ export const deletePlan = async (req, res, next) => {
   try {
     const { id, familyMemberId } = req.params;
 
-    // Verify family member belongs to user
+    // Verify family member belongs to current user (not linked family - read-only)
     const familyMember = await prisma.familyMember.findFirst({
       where: {
         id: familyMemberId,

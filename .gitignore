@@ -106,3 +106,6 @@ Desktop.ini
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
+# Uploaded files
+server/uploads/
+

@@ -13,7 +13,7 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen, onSignO
     { id: 'med_database', label: 'Med Database', icon: Database },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'reports', label: 'Documents', icon: FileText },
-    { id: 'settings', label: 'Settings & Share', icon: Settings },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (

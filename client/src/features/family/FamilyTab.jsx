@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { X, Plus, Trash2, User, Edit } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { 
+  useFamilyMembers,
+  useCreateFamilyMember,
+  useUpdateFamilyMember,
+  useDeleteFamilyMember 
+} from '../../hooks/useData';
+import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
@@ -8,12 +14,26 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import FamilyMemberDetails from './FamilyMemberDetails';
 
 const FamilyTab = () => {
-  const { family, addFamilyMember, updateFamilyMember, deleteFamilyMember } = useApp();
+  const { data: family = [], isLoading } = useFamilyMembers();
+  const { user } = useAuth();
+  const createFamilyMember = useCreateFamilyMember();
+  const updateFamilyMember = useUpdateFamilyMember();
+  const deleteFamilyMember = useDeleteFamilyMember();
   const [selectedMember, setSelectedMember] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: '', relation: '', age: '' });
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
+  
+  // Check if a family member belongs to the current user
+  const isOwnMember = (member) => {
+    return member.userId === user?.id;
+  };
+
+  // Check if this is the main linked account's self card (should not be deletable)
+  const isMainLinkedAccountSelf = (member) => {
+    return member.relation === 'Self' && member.userId === user?.linkedFamilyId;
+  };
 
   const resetForm = () => {
     setFormData({ name: '', relation: '', age: '' });
@@ -35,12 +55,19 @@ const FamilyTab = () => {
     e.preventDefault();
     if (!formData.name) return;
     
-    if (editingId) {
-      await updateFamilyMember(editingId, formData);
-    } else {
-      await addFamilyMember(formData);
+    try {
+      if (editingId) {
+        await updateFamilyMember.mutateAsync({
+          id: editingId,
+          updates: formData
+        });
+      } else {
+        await createFamilyMember.mutateAsync(formData);
+      }
+      resetForm();
+    } catch (error) {
+      console.error('Failed to save family member:', error);
     }
-    resetForm();
   };
 
   const handleDeleteClick = (e, id, name) => {
@@ -50,7 +77,11 @@ const FamilyTab = () => {
 
   const handleDeleteConfirm = async () => {
     if (deleteConfirm.id) {
-      await deleteFamilyMember(deleteConfirm.id);
+      try {
+        await deleteFamilyMember.mutateAsync(deleteConfirm.id);
+      } catch (error) {
+        console.error('Failed to delete family member:', error);
+      }
     }
     setDeleteConfirm({ isOpen: false, id: null, name: '' });
   };
@@ -95,8 +126,13 @@ const FamilyTab = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {family.map(member => (
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mx-auto"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {family.map(member => (
           <div 
             key={member.id} 
             onClick={() => setSelectedMember(member)} 
@@ -110,23 +146,29 @@ const FamilyTab = () => {
               >
                 <Edit size={16} />
               </button>
-              <button 
-                onClick={(e) => handleDeleteClick(e, member.id, member.name)} 
-                className="text-slate-400 dark:text-[#94a3b8] hover:text-red-500 transition-colors"
-                title="Delete"
-              >
-                <Trash2 size={16} />
-              </button>
+              {!isMainLinkedAccountSelf(member) && (
+                <button 
+                  onClick={(e) => handleDeleteClick(e, member.id, member.name)} 
+                  className="text-slate-400 dark:text-[#94a3b8] hover:text-red-500 transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
             <div className="h-20 w-20 rounded-full bg-slate-100 dark:bg-[#27335D] flex items-center justify-center mb-4 text-slate-600 dark:text-[#F8FAFC]">
               <User size={32} />
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-[#F8FAFC]">{member.name}</h3>
             <p className="text-emerald-600 dark:text-[#34D399] text-sm font-medium mb-1">{member.relation}</p>
+            {!isOwnMember(member) && (
+              <p className="text-xs text-slate-400 dark:text-[#64748b] italic">From linked account</p>
+            )}
             <Button variant="outline" className="w-full text-xs h-8 mt-4">View Profile</Button>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={deleteConfirm.isOpen}

@@ -1,13 +1,23 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { X, Plus, Trash2, Calendar, Clock, MapPin, Briefcase, Edit } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { 
+  useAppointments, 
+  useFamilyMembers,
+  useCreateAppointment,
+  useUpdateAppointment,
+  useDeleteAppointment 
+} from '../../hooks/useData';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const AppointmentsTab = () => {
-  const { appointments, family, addAppointment, updateAppointment, deleteAppointment } = useApp();
+  const { data: appointments = [], isLoading: appointmentsLoading } = useAppointments();
+  const { data: family = [] } = useFamilyMembers();
+  const createAppointment = useCreateAppointment();
+  const updateAppointment = useUpdateAppointment();
+  const deleteAppointment = useDeleteAppointment();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ doctor: '', specialty: '', location: '', date: '', time: '', familyMemberId: '' });
@@ -47,20 +57,27 @@ const AppointmentsTab = () => {
     
     const memberName = family.find(m => m.id === formData.familyMemberId)?.name || 'General';
 
-    if (editingId) {
-      await updateAppointment(editingId, {
-        ...formData,
-        familyMemberName: memberName,
-        familyMemberId: formData.familyMemberId || null
-      });
-    } else {
-      await addAppointment({
-        ...formData,
-        familyMemberName: memberName,
-        familyMemberId: formData.familyMemberId || null
-      });
+    try {
+      if (editingId) {
+        await updateAppointment.mutateAsync({
+          id: editingId,
+          updates: {
+            ...formData,
+            familyMemberName: memberName,
+            familyMemberId: formData.familyMemberId || null
+          }
+        });
+      } else {
+        await createAppointment.mutateAsync({
+          ...formData,
+          familyMemberName: memberName,
+          familyMemberId: formData.familyMemberId || null
+        });
+      }
+      resetForm();
+    } catch (error) {
+      console.error('Failed to save appointment:', error);
     }
-    resetForm();
   };
 
   const handleDeleteClick = (id, doctor) => {
@@ -69,7 +86,11 @@ const AppointmentsTab = () => {
 
   const handleDeleteConfirm = async () => {
     if (deleteConfirm.id) {
-      await deleteAppointment(deleteConfirm.id);
+      try {
+        await deleteAppointment.mutateAsync(deleteConfirm.id);
+      } catch (error) {
+        console.error('Failed to delete appointment:', error);
+      }
     }
     setDeleteConfirm({ isOpen: false, id: null, doctor: '' });
   };
@@ -134,8 +155,13 @@ const AppointmentsTab = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sortedAppointments.length === 0 && !showForm && (
+      {appointmentsLoading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mx-auto"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sortedAppointments.length === 0 && !showForm && (
           <div className="col-span-full text-center py-12 bg-slate-50 dark:bg-[#1B2430]/50 rounded-xl border border-dashed border-slate-300 dark:border-[#27335D]">
             <Calendar className="mx-auto h-12 w-12 text-slate-400 dark:text-[#27335D] mb-3" />
             <p className="text-slate-500 dark:text-[#94a3b8]">No upcoming appointments.</p>
@@ -199,7 +225,8 @@ const AppointmentsTab = () => {
             </Card>
           );
         })}
-      </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={deleteConfirm.isOpen}

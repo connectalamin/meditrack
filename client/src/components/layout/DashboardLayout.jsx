@@ -21,7 +21,7 @@ const DashboardLayout = ({ user, sidebarOpen, setSidebarOpen, handleSignOut, the
     { id: 'med_database', label: 'Med Database' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'reports', label: 'Documents' },
-    { id: 'settings', label: 'Settings & Share' },
+    { id: 'settings', label: 'Settings' },
   ];
 
   const getDisplayName = () => {

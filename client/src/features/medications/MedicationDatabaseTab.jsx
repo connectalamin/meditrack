@@ -1,13 +1,21 @@
 import { useState, useMemo } from 'react';
 import { X, Plus, Trash2, Edit } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { 
+  useMedications,
+  useCreateMedication,
+  useUpdateMedication,
+  useDeleteMedication 
+} from '../../hooks/useData';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const MedicationDatabaseTab = () => {
-  const { medications, addMedication, updateMedication, deleteMedication } = useApp();
+  const { data: medications = [], isLoading } = useMedications();
+  const createMedication = useCreateMedication();
+  const updateMedication = useUpdateMedication();
+  const deleteMedication = useDeleteMedication();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: '', strength: '', price: '', packSize: '', unit: 'tablets' });
@@ -45,12 +53,19 @@ const MedicationDatabaseTab = () => {
       packSize: formData.packSize ? Number(formData.packSize) : 1
     };
 
-    if (editingId) {
-      await updateMedication(editingId, medicationData);
-    } else {
-      await addMedication(medicationData);
+    try {
+      if (editingId) {
+        await updateMedication.mutateAsync({
+          id: editingId,
+          updates: medicationData
+        });
+      } else {
+        await createMedication.mutateAsync(medicationData);
+      }
+      resetForm();
+    } catch (error) {
+      console.error('Failed to save medication:', error);
     }
-    resetForm();
   };
 
   const handleDeleteClick = (id, name) => {
@@ -59,7 +74,11 @@ const MedicationDatabaseTab = () => {
 
   const handleDeleteConfirm = async () => {
     if (deleteConfirm.id) {
-      await deleteMedication(deleteConfirm.id);
+      try {
+        await deleteMedication.mutateAsync(deleteConfirm.id);
+      } catch (error) {
+        console.error('Failed to delete medication:', error);
+      }
     }
     setDeleteConfirm({ isOpen: false, id: null, name: '' });
   };

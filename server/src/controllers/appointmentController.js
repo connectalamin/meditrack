@@ -2,8 +2,32 @@ import prisma from '../config/database.js';
 
 export const getAppointments = async (req, res, next) => {
   try {
+    // Get user's linked family ID
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { linkedFamilyId: true }
+    });
+
+    // Fetch appointments from both current user and linked family
+    const userIds = [req.user.id];
+    if (user?.linkedFamilyId) {
+      userIds.push(user.linkedFamilyId);
+    }
+
+    // Also check if any other user has linked to the current user (bidirectional)
+    const usersLinkedToMe = await prisma.user.findMany({
+      where: { linkedFamilyId: req.user.id },
+      select: { id: true }
+    });
+    
+    usersLinkedToMe.forEach(u => {
+      if (!userIds.includes(u.id)) {
+        userIds.push(u.id);
+      }
+    });
+
     const appointments = await prisma.appointment.findMany({
-      where: { userId: req.user.id },
+      where: { userId: { in: userIds } },
       orderBy: { date: 'asc' }
     });
 

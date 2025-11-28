@@ -1,23 +1,39 @@
-import { useState, useEffect } from 'react';
-import { Camera, Upload, CheckCircle, Trash2, FileText, ScrollText, Check, Edit, X } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { useState, useEffect, useMemo } from 'react';
+import { Upload, Trash2, FileText, ScrollText, Edit, X, Eye, Download, ArrowUpDown, Filter, ArrowUp, ArrowDown } from 'lucide-react';
+import { 
+  useReports,
+  useFamilyMembers,
+  useCreateReport,
+  useUpdateReport,
+  useDeleteReport 
+} from '../../hooks/useData';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import ReportViewer from '../../components/reports/ReportViewer';
 
 const ReportsTab = () => {
-  const { reports, family, addReport, updateReport, deleteReport } = useApp();
+  const { data: reports = [] } = useReports();
+  const { data: family = [] } = useFamilyMembers();
+  const createReport = useCreateReport();
+  const updateReport = useUpdateReport();
+  const deleteReport = useDeleteReport();
   const [title, setTitle] = useState('');
   const [selectedMember, setSelectedMember] = useState('');
   const [category, setCategory] = useState('Report');
-  const [mode, setMode] = useState('quick');
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scannedPreview, setScannedPreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const [viewingReport, setViewingReport] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, title: '' });
+  
+  // Sorting and filtering states
+  const [sortBy, setSortBy] = useState('date-desc'); // Default: newest first
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterMember, setFilterMember] = useState('all');
+  const [filterFileType, setFilterFileType] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (editingId) {
@@ -26,7 +42,6 @@ const ReportsTab = () => {
         setTitle(report.title || '');
         setSelectedMember(report.familyMemberId || '');
         setCategory(report.category || 'Report');
-        setMode('quick');
       }
     }
   }, [editingId, reports]);
@@ -35,9 +50,8 @@ const ReportsTab = () => {
     setTitle('');
     setSelectedMember('');
     setCategory('Report');
-    setMode('quick');
     setEditingId(null);
-    setScannedPreview(null);
+    setSelectedFile(null);
   };
 
   const handleEdit = (report) => {
@@ -45,7 +59,6 @@ const ReportsTab = () => {
     setTitle(report.title || '');
     setSelectedMember(report.familyMemberId || '');
     setCategory(report.category || 'Report');
-    setMode('quick');
   };
 
   const handleUpload = async (e) => {
@@ -54,46 +67,47 @@ const ReportsTab = () => {
     
     const memberName = family.find(m => m.id === selectedMember)?.name || 'Unassigned';
 
+    // Determine file type from actual file
+    let fileType = 'PDF';
+    
+    if (selectedFile) {
+      const fileName = selectedFile.name.toLowerCase();
+      const fileMimeType = selectedFile.type;
+      
+      if (fileMimeType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName)) {
+        fileType = 'Scanned Image';
+      } else if (fileMimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
+        fileType = 'PDF';
+      }
+    }
+
     const reportData = {
       title,
       date: editingId ? reports.find(r => r.id === editingId)?.date : new Date().toISOString(),
-      type: mode === 'ocr' ? 'Scanned Image' : 'PDF',
+      type: fileType,
       category: category,
       familyMemberId: selectedMember || null,
       familyMemberName: memberName
     };
 
-    if (editingId) {
-      await updateReport(editingId, reportData);
-    } else {
-      await addReport(reportData);
+    try {
+      if (editingId) {
+        await updateReport.mutateAsync({
+          id: editingId,
+          updates: reportData,
+          file: selectedFile
+        });
+      } else {
+        await createReport.mutateAsync({
+          report: reportData,
+          file: selectedFile
+        });
+      }
+      resetForm();
+    } catch (error) {
+      console.error('Error uploading report:', error);
+      alert('Failed to upload report: ' + error.message);
     }
-    resetForm();
-  };
-
-  const simulateOCR = (file) => {
-    if (!file) return;
-    setIsScanning(true);
-    setScanProgress(0);
-    
-    const previewUrl = URL.createObjectURL(file);
-
-    const interval = setInterval(() => {
-      setScanProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsScanning(false);
-          setScannedPreview(previewUrl);
-          
-          if (!title) {
-            const mockName = file.name.split('.')[0].replace(/-/g, ' ');
-            setTitle(mockName.charAt(0).toUpperCase() + mockName.slice(1));
-          }
-          return 100;
-        }
-        return prev + 20;
-      });
-    }, 150);
   };
 
   const handleDeleteClick = (id, title) => {
@@ -102,31 +116,99 @@ const ReportsTab = () => {
 
   const handleDeleteConfirm = async () => {
     if (deleteConfirm.id) {
-      await deleteReport(deleteConfirm.id);
+      try {
+        await deleteReport.mutateAsync(deleteConfirm.id);
+      } catch (error) {
+        console.error('Failed to delete report:', error);
+      }
     }
     setDeleteConfirm({ isOpen: false, id: null, title: '' });
+  };
+
+  const handleView = (report) => {
+    setViewingReport(report);
+  };
+
+  const handleDownload = (report) => {
+    if (!report.fileUrl) {
+      alert('No file available for download');
+      return;
+    }
+
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const baseUrl = API_BASE_URL.replace('/api', '');
+    const fileUrl = report.fileUrl.startsWith('http') 
+      ? report.fileUrl 
+      : `${baseUrl}${report.fileUrl}`;
+    
+    const isPDF = report.type === 'PDF' || fileUrl.toLowerCase().endsWith('.pdf');
+    const extension = isPDF ? 'pdf' : (fileUrl.match(/\.(\w+)$/)?.[1] || 'jpg');
+    
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = `${report.title}.${extension}`;
+    link.target = '_blank'; // Fallback if download doesn't work
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Filter and sort reports
+  const filteredAndSortedReports = useMemo(() => {
+    let filtered = [...reports];
+
+    // Apply filters
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter(r => r.category === filterCategory);
+    }
+
+    if (filterMember !== 'all') {
+      if (filterMember === 'unassigned') {
+        filtered = filtered.filter(r => !r.familyMemberId);
+      } else {
+        filtered = filtered.filter(r => r.familyMemberId === filterMember);
+      }
+    }
+
+    if (filterFileType !== 'all') {
+      filtered = filtered.filter(r => r.type === filterFileType);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date-desc': // Newest first (default)
+          return new Date(b.date) - new Date(a.date);
+        case 'date-asc': // Oldest first
+          return new Date(a.date) - new Date(b.date);
+        case 'title-asc': // A-Z
+          return (a.title || '').localeCompare(b.title || '');
+        case 'title-desc': // Z-A
+          return (b.title || '').localeCompare(a.title || '');
+        case 'category-asc': // Category A-Z
+          return (a.category || '').localeCompare(b.category || '');
+        case 'category-desc': // Category Z-A
+          return (b.category || '').localeCompare(a.category || '');
+        default:
+          return new Date(b.date) - new Date(a.date);
+      }
+    });
+
+    return filtered;
+  }, [reports, sortBy, filterCategory, filterMember, filterFileType]);
+
+  const hasActiveFilters = filterCategory !== 'all' || filterMember !== 'all' || filterFileType !== 'all';
+
+  const clearFilters = () => {
+    setFilterCategory('all');
+    setFilterMember('all');
+    setFilterFileType('all');
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">Health Documents</h2>
-        {!editingId && (
-          <div className="flex bg-slate-100 dark:bg-[#1B2430] p-1 rounded-lg">
-            <button 
-              onClick={() => setMode('quick')} 
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${mode === 'quick' ? 'bg-white dark:bg-[#27335D] text-emerald-600 shadow-sm' : 'text-slate-500'}`}
-            >
-              Manual Upload
-            </button>
-            <button 
-              onClick={() => setMode('ocr')} 
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${mode === 'ocr' ? 'bg-white dark:bg-[#27335D] text-emerald-600 shadow-sm' : 'text-slate-500'}`}
-            >
-              <Camera size={14} /> Take Photo & Scan
-            </button>
-          </div>
-        )}
         {editingId && (
           <Button variant="secondary" onClick={resetForm}>
             <X size={18} /> Cancel Edit
@@ -135,62 +217,52 @@ const ReportsTab = () => {
       </div>
 
       <Card>
-        {mode === 'ocr' && !isScanning && !scannedPreview && !editingId && (
-          <div className="mb-6 p-8 border-2 border-dashed border-slate-300 dark:border-[#27335D] rounded-xl flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-[#27335D]/20 transition-colors cursor-pointer relative">
-            <input 
-              type="file" 
-              className="absolute inset-0 opacity-0 cursor-pointer" 
-              onChange={(e) => simulateOCR(e.target.files[0])} 
-              accept="image/*" 
-              capture="environment" 
-            />
-            <div className="h-12 w-12 bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 rounded-full flex items-center justify-center mb-3">
-              <Camera size={24} />
-            </div>
-            <h3 className="font-semibold text-slate-900 dark:text-[#F8FAFC]">Take Photo / Upload Image</h3>
-            <p className="text-sm text-slate-500 dark:text-[#94a3b8] mt-1">Capture the document clearly. AI will scan and extract details.</p>
-          </div>
-        )}
-        
-        {mode === 'ocr' && isScanning && (
-          <div className="mb-6 p-8 bg-slate-50 dark:bg-[#111725] rounded-xl flex flex-col items-center justify-center text-center">
-            <div className="w-full max-w-xs bg-slate-200 dark:bg-[#27335D] h-2 rounded-full overflow-hidden mb-4">
-              <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${scanProgress}%` }} />
-            </div>
-            <p className="text-sm font-medium text-emerald-600 animate-pulse">Enhancing & Cropping Image...</p>
-          </div>
-        )}
-
-        {mode === 'ocr' && scannedPreview && !editingId && (
-          <div className="mb-6 p-4 border border-slate-200 dark:border-[#27335D] rounded-xl bg-slate-50 dark:bg-[#111725] flex gap-4 items-center animate-in fade-in">
-            <div className="h-24 w-24 bg-white dark:bg-black rounded-lg overflow-hidden border border-slate-300 dark:border-[#27335D] relative group">
-              <img src={scannedPreview} alt="Scanned" className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Check className="text-white" size={20} />
-              </div>
-            </div>
-            <div className="flex-1">
-              <h4 className="font-semibold text-slate-900 dark:text-[#F8FAFC]">Scan Successful</h4>
-              <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-2">Image processed and cropped.</p>
-              <Button variant="outline" onClick={() => setScannedPreview(null)} className="h-7 text-xs">Retake</Button>
-            </div>
-          </div>
-        )}
-
         {editingId && (
           <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg">
             <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">Editing: {reports.find(r => r.id === editingId)?.title}</p>
           </div>
         )}
 
-        <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        {!editingId && (
+          <div className="mb-4 p-4 border-2 border-dashed border-slate-300 dark:border-[#27335D] rounded-xl flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-[#27335D]/20 transition-colors cursor-pointer relative">
+            <input 
+              type="file" 
+              className="absolute inset-0 opacity-0 cursor-pointer" 
+              onChange={(e) => setSelectedFile(e.target.files[0])} 
+              accept=".pdf,application/pdf,image/*,.jpg,.jpeg,.png,.gif,.webp" 
+            />
+            <div className="h-12 w-12 bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 rounded-full flex items-center justify-center mb-3">
+              <Upload size={24} />
+            </div>
+            <h3 className="font-semibold text-slate-900 dark:text-[#F8FAFC]">
+              {selectedFile ? selectedFile.name : 'Upload PDF or Image File'}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-[#94a3b8] mt-1">
+              {selectedFile ? 'Click to change file' : 'Click to select a PDF or image document'}
+            </p>
+            {selectedFile && (
+              <Button 
+                variant="outline" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedFile(null);
+                }} 
+                className="mt-2 h-7 text-xs"
+              >
+                Remove File
+              </Button>
+            )}
+          </div>
+        )}
+
+        <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
           <div className="md:col-span-2">
             <Input label="Document Title" placeholder="e.g. Lab Report Jan 2024" value={title} onChange={e => setTitle(e.target.value)} className="mb-0" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Doc Type</label>
+            <label className="block text-xs font-medium text-slate-500 dark:text-[#94a3b8] mb-1">Doc Type</label>
             <select 
-              className="w-full bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-[#F8FAFC]"
+              className="w-full bg-white dark:bg-[#1B2430] border-2 border-slate-500 dark:border-slate-500 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-[#F8FAFC] shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
@@ -199,9 +271,9 @@ const ReportsTab = () => {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Assign To</label>
+            <label className="block text-xs font-medium text-slate-500 dark:text-[#94a3b8] mb-1">Assign To</label>
             <select 
-              className="w-full bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-[#F8FAFC]"
+              className="w-full bg-white dark:bg-[#1B2430] border-2 border-slate-500 dark:border-slate-500 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-[#F8FAFC] shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
               value={selectedMember}
               onChange={(e) => setSelectedMember(e.target.value)}
             >
@@ -209,20 +281,143 @@ const ReportsTab = () => {
               {family.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </div>
-          <div className="md:col-span-4 flex justify-end gap-2">
+          <div className="flex items-end">
             {editingId && (
-              <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>
+              <Button type="button" variant="secondary" onClick={resetForm} className="mr-2">Cancel</Button>
             )}
-            <Button type="submit" className="w-full md:w-auto" disabled={isScanning || !title}>
-              {mode === 'ocr' ? <CheckCircle size={18} /> : <Upload size={18} />}
-              {editingId ? 'Update Document' : (mode === 'ocr' ? 'Save Scanned Document' : 'Upload File')}
+            <Button type="submit" className="w-full" disabled={!title || (!selectedFile && !editingId)}>
+              <Upload size={18} />
+              {editingId ? 'Update' : 'Upload'}
             </Button>
           </div>
         </form>
       </Card>
 
+      {/* Sorting and Filtering Controls */}
+      <Card>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                showFilters || hasActiveFilters
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+                  : 'bg-slate-100 text-slate-600 dark:bg-[#27335D] dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#27335D]/80'
+              }`}
+            >
+              <Filter size={16} />
+              Filters
+              {hasActiveFilters && (
+                <span className="ml-1 px-1.5 py-0.5 bg-emerald-500 text-white text-xs rounded-full">
+                  {[filterCategory !== 'all', filterMember !== 'all', filterFileType !== 'all'].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+            
+            <div className="flex items-center gap-2">
+              <ArrowUpDown size={16} className="text-slate-500 dark:text-[#94a3b8]" />
+              <label className="text-sm text-slate-600 dark:text-[#94a3b8]">Sort by:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-1.5 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg text-sm text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              >
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="title-asc">Title (A-Z)</option>
+                <option value="title-desc">Title (Z-A)</option>
+                <option value="category-asc">Category (A-Z)</option>
+                <option value="category-desc">Category (Z-A)</option>
+              </select>
+            </div>
+          </div>
+
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              onClick={clearFilters}
+              className="text-xs"
+            >
+              Clear Filters
+            </Button>
+          )}
+        </div>
+
+        {/* Filter Options */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-[#27335D] grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-[#94a3b8] mb-2">Category</label>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg text-sm text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              >
+                <option value="all">All Categories</option>
+                <option value="Report">Medical Report</option>
+                <option value="Prescription">Prescription</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-[#94a3b8] mb-2">Family Member</label>
+              <select
+                value={filterMember}
+                onChange={(e) => setFilterMember(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg text-sm text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              >
+                <option value="all">All Members</option>
+                <option value="unassigned">Unassigned</option>
+                {family.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-[#94a3b8] mb-2">File Type</label>
+              <select
+                value={filterFileType}
+                onChange={(e) => setFilterFileType(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg text-sm text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              >
+                <option value="all">All Types</option>
+                <option value="PDF">PDF</option>
+                <option value="Scanned Image">Scanned Image</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Results count */}
+        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-[#27335D]">
+          <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
+            Showing {filteredAndSortedReports.length} of {reports.length} documents
+          </p>
+        </div>
+      </Card>
+
       <div className="grid gap-3">
-        {reports.map(report => (
+        {filteredAndSortedReports.length === 0 ? (
+          <Card>
+            <div className="text-center py-12">
+              <FileText className="mx-auto h-12 w-12 text-slate-400 dark:text-[#64748b] mb-3" />
+              <p className="text-slate-500 dark:text-[#94a3b8]">
+                {hasActiveFilters ? 'No documents match your filters.' : 'No documents yet.'}
+              </p>
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  onClick={clearFilters}
+                  className="mt-3 text-xs"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          </Card>
+        ) : (
+          filteredAndSortedReports.map(report => (
           <div key={report.id} className="flex items-center justify-between p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg group hover:border-emerald-500/50 transition-colors">
             <div className="flex items-center gap-4">
               <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>
@@ -246,6 +441,24 @@ const ReportsTab = () => {
             <div className="flex items-center gap-3">
               <Badge>{report.type}</Badge>
               <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {report.fileUrl && (
+                  <>
+                    <button 
+                      onClick={() => handleView(report)} 
+                      className="text-slate-400 dark:text-[#94a3b8] hover:text-blue-500 p-2 transition-colors"
+                      title="View"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleDownload(report)} 
+                      className="text-slate-400 dark:text-[#94a3b8] hover:text-emerald-500 p-2 transition-colors"
+                      title="Download"
+                    >
+                      <Download size={16} />
+                    </button>
+                  </>
+                )}
                 <button 
                   onClick={() => handleEdit(report)} 
                   className="text-slate-400 dark:text-[#94a3b8] hover:text-emerald-500 p-2 transition-colors"
@@ -263,7 +476,8 @@ const ReportsTab = () => {
               </div>
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
 
       <ConfirmModal
@@ -274,6 +488,12 @@ const ReportsTab = () => {
         message={`Are you sure you want to delete "${deleteConfirm.title}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
+      />
+
+      <ReportViewer
+        isOpen={!!viewingReport}
+        onClose={() => setViewingReport(null)}
+        report={viewingReport}
       />
     </div>
   );

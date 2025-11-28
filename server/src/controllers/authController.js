@@ -48,6 +48,17 @@ export const register = async (req, res, next) => {
       }
     });
 
+    // Auto-create self family member card
+    await prisma.familyMember.create({
+      data: {
+        userId: user.id,
+        name: user.displayName || email.split('@')[0],
+        relation: 'Self',
+        age: null,
+        lastDoctorVisit: null
+      }
+    });
+
     res.status(201).json({
       message: 'User created successfully',
       user: {
@@ -128,11 +139,37 @@ export const login = async (req, res, next) => {
 
 export const getMe = async (req, res, next) => {
   try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        linkedFamilyId: true
+      }
+    });
+
+    // Get linked user info if linkedFamilyId exists
+    let linkedUser = null;
+    if (user.linkedFamilyId) {
+      const linked = await prisma.user.findUnique({
+        where: { id: user.linkedFamilyId },
+        select: {
+          id: true,
+          email: true,
+          displayName: true
+        }
+      });
+      linkedUser = linked;
+    }
+
     res.json({
       user: {
-        id: req.user.id,
-        email: req.user.email,
-        displayName: req.user.displayName
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        linkedFamilyId: user.linkedFamilyId,
+        linkedUser: linkedUser
       }
     });
   } catch (error) {
@@ -181,6 +218,162 @@ export const logout = async (req, res, next) => {
 // Danger: clears all data for the current user (for demo/testing).
 // Keeps the user record but deletes appointments, medications, family,
 // reports and devices. Health data and plans are removed via cascades.
+export const joinFamily = async (req, res, next) => {
+  try {
+    const { referralId } = req.body;
+    const currentUserId = req.user.id;
+
+    if (!referralId) {
+      return res.status(400).json({ message: 'Referral ID is required' });
+    }
+
+    // Clean the referral ID (remove dashes and spaces if present, but keep case)
+    const cleanReferralId = referralId.replace(/[-\s]/g, '');
+
+    // Check if the referral ID exists (it should be a valid user ID)
+    const targetUser = await prisma.user.findUnique({
+      where: { id: cleanReferralId },
+      select: { id: true, email: true, displayName: true }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ message: 'Invalid referral ID. Please check and try again.' });
+    }
+
+    if (targetUser.id === currentUserId) {
+      return res.status(400).json({ message: 'You cannot join your own family.' });
+    }
+
+    // Update current user to link to the target family
+    await prisma.user.update({
+      where: { id: currentUserId },
+      data: { linkedFamilyId: targetUser.id }
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully linked to ${targetUser.displayName || targetUser.email}'s family dashboard.`,
+      linkedUser: {
+        id: targetUser.id,
+        displayName: targetUser.displayName,
+        email: targetUser.email
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getLinkedAccounts = async (req, res, next) => {
+  try {
+    const currentUserId = req.user.id;
+    const linkedAccounts = [];
+
+    // Get the account the current user linked to (if any)
+    const currentUser = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { linkedFamilyId: true }
+    });
+
+    if (currentUser?.linkedFamilyId) {
+      const linkedTo = await prisma.user.findUnique({
+        where: { id: currentUser.linkedFamilyId },
+        select: {
+          id: true,
+          email: true,
+          displayName: true
+        }
+      });
+      if (linkedTo) {
+        linkedAccounts.push({
+          id: linkedTo.id,
+          email: linkedTo.email,
+          displayName: linkedTo.displayName,
+          type: 'linked_to' // Account I linked to
+        });
+      }
+    }
+
+    // Get accounts that linked to the current user
+    const linkedToMe = await prisma.user.findMany({
+      where: { linkedFamilyId: currentUserId },
+      select: {
+        id: true,
+        email: true,
+        displayName: true
+      }
+    });
+
+    linkedToMe.forEach(user => {
+      linkedAccounts.push({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        type: 'linked_from' // Account that linked to me
+      });
+    });
+
+    res.json({ linkedAccounts });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const removeLinkedAccount = async (req, res, next) => {
+  try {
+    const { accountId } = req.body;
+    const currentUserId = req.user.id;
+
+    if (!accountId) {
+      return res.status(400).json({ message: 'Account ID is required' });
+    }
+
+    // Get current user's linked family ID
+    const currentUser = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { linkedFamilyId: true }
+    });
+
+    // Check if this is an account the user linked to (can remove)
+    if (currentUser?.linkedFamilyId === accountId) {
+      // Remove the link by setting linkedFamilyId to null
+      await prisma.user.update({
+        where: { id: currentUserId },
+        data: { linkedFamilyId: null }
+      });
+
+      return res.json({
+        success: true,
+        message: 'Successfully removed linked account'
+      });
+    }
+
+    // Check if this is an account that linked to the current user
+    const linkedToMe = await prisma.user.findUnique({
+      where: { id: accountId },
+      select: { linkedFamilyId: true }
+    });
+
+    if (linkedToMe?.linkedFamilyId === currentUserId) {
+      // Remove the link from the other user's side
+      // This allows the account owner to revoke access from accounts that linked to them
+      await prisma.user.update({
+        where: { id: accountId },
+        data: { linkedFamilyId: null }
+      });
+
+      return res.json({
+        success: true,
+        message: 'Successfully removed linked account'
+      });
+    }
+
+    return res.status(404).json({ message: 'Linked account not found' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const clearUserData = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -273,6 +466,7 @@ export const googleLogin = async (req, res, next) => {
       where: { email }
     });
 
+    let isNewUser = false;
     if (!user) {
       // Create new user with Google OAuth
       user = await prisma.user.create({
@@ -283,6 +477,7 @@ export const googleLogin = async (req, res, next) => {
           googleId: googleId
         }
       });
+      isNewUser = true;
     } else {
       // Update existing user with Google ID if not set
       if (!user.googleId) {
@@ -307,6 +502,29 @@ export const googleLogin = async (req, res, next) => {
         deviceName
       }
     });
+
+    // Auto-create self family member card for new users
+    if (isNewUser) {
+      // Check if self card already exists (shouldn't for new users, but just in case)
+      const existingSelfCard = await prisma.familyMember.findFirst({
+        where: {
+          userId: user.id,
+          relation: 'Self'
+        }
+      });
+
+      if (!existingSelfCard) {
+        await prisma.familyMember.create({
+          data: {
+            userId: user.id,
+            name: user.displayName || email.split('@')[0],
+            relation: 'Self',
+            age: null,
+            lastDoctorVisit: null
+          }
+        });
+      }
+    }
 
     res.json({
       message: 'Google login successful',

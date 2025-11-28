@@ -1,7 +1,19 @@
 import { useState, useMemo } from 'react';
-import { ChevronLeft, Plus, Stethoscope, Activity, FileText, ScrollText, ImageIcon, Trash2, Edit } from 'lucide-react';
+import { ChevronLeft, Plus, Stethoscope, Activity, FileText, ScrollText, ImageIcon, Trash2, Edit, ArrowUpDown } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
-import { useApp } from '../../context/AppContext';
+import { 
+  useMedications,
+  useReports,
+  useHealthData,
+  usePlans,
+  useCreateHealthData,
+  useUpdateHealthData,
+  useDeleteHealthData,
+  useCreatePlan,
+  useUpdatePlan,
+  useDeletePlan,
+  useUpdateFamilyMember
+} from '../../hooks/useData';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
@@ -9,9 +21,23 @@ import Badge from '../../components/ui/Badge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const FamilyMemberDetails = ({ member, onBack }) => {
-  const { medications, reports, getHealthDataForMember, getPlansForMember, addHealthData, addPlan, updatePlan, updateFamilyMember, deleteHealthData, deletePlan } = useApp();
+  const { data: medications = [] } = useMedications();
+  const { data: reports = [] } = useReports();
+  const { data: healthData = [] } = useHealthData(member.id);
+  const { data: plans = [] } = usePlans(member.id);
+  
+  const createHealthData = useCreateHealthData();
+  const updateHealthData = useUpdateHealthData();
+  const deleteHealthData = useDeleteHealthData();
+  const createPlan = useCreatePlan();
+  const updatePlan = useUpdatePlan();
+  const deletePlan = useDeletePlan();
+  const updateFamilyMember = useUpdateFamilyMember();
+  
+  const memberReports = reports.filter(r => r.familyMemberId === member.id);
   const [subTab, setSubTab] = useState('vitals');
   const [docFilter, setDocFilter] = useState('Report');
+  const [docSortBy, setDocSortBy] = useState('date-desc'); // Default: newest first
   const [showAddPlan, setShowAddPlan] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [showAddData, setShowAddData] = useState(false);
@@ -20,10 +46,6 @@ const FamilyMemberDetails = ({ member, onBack }) => {
   const [doctorDate, setDoctorDate] = useState(member.lastDoctorVisit || '');
   const [deleteHealthDataConfirm, setDeleteHealthDataConfirm] = useState({ isOpen: false, memberId: null, dataId: null, type: '', date: '' });
   const [deletePlanConfirm, setDeletePlanConfirm] = useState({ isOpen: false, memberId: null, planId: null, medicationName: '' });
-
-  const healthData = getHealthDataForMember(member.id);
-  const plans = getPlansForMember(member.id);
-  const memberReports = reports.filter(r => r.familyMemberId === member.id);
 
   const metricTypes = useMemo(() => {
     const defaultTypes = ['Blood Pressure', 'Glucose'];
@@ -59,24 +81,49 @@ const FamilyMemberDetails = ({ member, onBack }) => {
       frequency: Number(newPlan.frequency)
     };
 
-    if (editingPlanId) {
-      await updatePlan(member.id, editingPlanId, planData);
-    } else {
-      await addPlan(member.id, planData);
+    try {
+      if (editingPlanId) {
+        await updatePlan.mutateAsync({
+          familyMemberId: member.id,
+          planId: editingPlanId,
+          updates: planData
+        });
+      } else {
+        await createPlan.mutateAsync({
+          familyMemberId: member.id,
+          plan: planData
+        });
+      }
+      resetPlanForm();
+    } catch (error) {
+      console.error('Failed to save plan:', error);
     }
-    resetPlanForm();
   };
 
   const handleAddData = async () => {
     if (!newData.value) return;
-    await addHealthData(member.id, newData);
-    setShowAddData(false);
-    setNewData({ ...newData, value: '' });
+    try {
+      await createHealthData.mutateAsync({
+        familyMemberId: member.id,
+        data: newData
+      });
+      setShowAddData(false);
+      setNewData({ ...newData, value: '' });
+    } catch (error) {
+      console.error('Failed to add health data:', error);
+    }
   };
 
-  const updateDoctorVisit = (date) => {
+  const updateDoctorVisit = async (date) => {
     setDoctorDate(date);
-    updateFamilyMember(member.id, { lastDoctorVisit: date });
+    try {
+      await updateFamilyMember.mutateAsync({
+        id: member.id,
+        updates: { lastDoctorVisit: date }
+      });
+    } catch (error) {
+      console.error('Failed to update doctor visit:', error);
+    }
   };
 
   const handleDeleteHealthDataClick = (dataId, type, date) => {
@@ -85,7 +132,14 @@ const FamilyMemberDetails = ({ member, onBack }) => {
 
   const handleDeleteHealthDataConfirm = async () => {
     if (deleteHealthDataConfirm.memberId && deleteHealthDataConfirm.dataId) {
-      await deleteHealthData(deleteHealthDataConfirm.memberId, deleteHealthDataConfirm.dataId);
+      try {
+        await deleteHealthData.mutateAsync({
+          familyMemberId: deleteHealthDataConfirm.memberId,
+          dataId: deleteHealthDataConfirm.dataId
+        });
+      } catch (error) {
+        console.error('Failed to delete health data:', error);
+      }
     }
     setDeleteHealthDataConfirm({ isOpen: false, memberId: null, dataId: null, type: '', date: '' });
   };
@@ -96,7 +150,14 @@ const FamilyMemberDetails = ({ member, onBack }) => {
 
   const handleDeletePlanConfirm = async () => {
     if (deletePlanConfirm.memberId && deletePlanConfirm.planId) {
-      await deletePlan(deletePlanConfirm.memberId, deletePlanConfirm.planId);
+      try {
+        await deletePlan.mutateAsync({
+          familyMemberId: deletePlanConfirm.memberId,
+          planId: deletePlanConfirm.planId
+        });
+      } catch (error) {
+        console.error('Failed to delete plan:', error);
+      }
     }
     setDeletePlanConfirm({ isOpen: false, memberId: null, planId: null, medicationName: '' });
   };
@@ -109,7 +170,28 @@ const FamilyMemberDetails = ({ member, onBack }) => {
     return { monthly, packs, cost };
   };
 
-  const filteredDocs = memberReports.filter(r => (r.category || 'Report') === docFilter);
+  // Filter and sort documents
+  const filteredDocs = useMemo(() => {
+    let filtered = memberReports.filter(r => (r.category || 'Report') === docFilter);
+    
+    // Sort documents
+    filtered.sort((a, b) => {
+      switch (docSortBy) {
+        case 'date-desc': // Newest first (default)
+          return new Date(b.date) - new Date(a.date);
+        case 'date-asc': // Oldest first
+          return new Date(a.date) - new Date(b.date);
+        case 'title-asc': // A-Z
+          return (a.title || '').localeCompare(b.title || '');
+        case 'title-desc': // Z-A
+          return (b.title || '').localeCompare(a.title || '');
+        default:
+          return new Date(b.date) - new Date(a.date);
+      }
+    });
+    
+    return filtered;
+  }, [memberReports, docFilter, docSortBy]);
 
   const generateChartData = (type) => {
     return healthData.filter(d => d.type === type).map(d => {
@@ -359,19 +441,36 @@ const FamilyMemberDetails = ({ member, onBack }) => {
 
       {subTab === 'reports' && (
         <div className="space-y-4">
-          <div className="flex gap-2 mb-4">
-            <button 
-              onClick={() => setDocFilter('Report')} 
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${docFilter === 'Report' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 font-medium' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-[#1B2430]'}`}
-            >
-              <FileText size={16} /> Reports
-            </button>
-            <button 
-              onClick={() => setDocFilter('Prescription')} 
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${docFilter === 'Prescription' ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400 font-medium' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-[#1B2430]'}`}
-            >
-              <ScrollText size={16} /> Prescriptions
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setDocFilter('Report')} 
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${docFilter === 'Report' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 font-medium' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-[#1B2430]'}`}
+              >
+                <FileText size={16} /> Reports
+              </button>
+              <button 
+                onClick={() => setDocFilter('Prescription')} 
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${docFilter === 'Prescription' ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400 font-medium' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-[#1B2430]'}`}
+              >
+                <ScrollText size={16} /> Prescriptions
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <ArrowUpDown size={14} className="text-slate-500 dark:text-[#94a3b8]" />
+              <label className="text-xs text-slate-600 dark:text-[#94a3b8]">Sort:</label>
+              <select
+                value={docSortBy}
+                onChange={(e) => setDocSortBy(e.target.value)}
+                className="px-2 py-1.5 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg text-xs text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              >
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="title-asc">Title (A-Z)</option>
+                <option value="title-desc">Title (Z-A)</option>
+              </select>
+            </div>
           </div>
 
           {filteredDocs.length === 0 ? (

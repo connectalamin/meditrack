@@ -5,6 +5,7 @@
 
 export const seedDemoData = async (appContext) => {
   const {
+    user,
     addMedication,
     addFamilyMember,
     addPlan,
@@ -12,6 +13,10 @@ export const seedDemoData = async (appContext) => {
     addHealthData,
     addAppointment,
   } = appContext;
+
+  if (!user) {
+    throw new Error('You must be logged in to seed demo data. Please log in and try again.');
+  }
 
   try {
     // 1. Global medication database (8+ meds)
@@ -235,6 +240,7 @@ export const seedDemoData = async (appContext) => {
     window.location.reload();
   } catch (error) {
     console.error('Error seeding demo data:', error);
-    alert('Failed to seed demo data: ' + error.message);
+    // Don't reload if there was an error
+    throw error; // Re-throw so the caller can handle it
   }
 };

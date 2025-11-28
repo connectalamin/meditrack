@@ -13,6 +13,9 @@ router.get('/me', authenticate, authController.getMe);
 router.get('/devices', authenticate, authController.getDevices);
 router.post('/logout', authenticate, authController.logout);
 router.post('/refresh', authController.refreshToken);
+router.post('/join-family', authenticate, authController.joinFamily);
+router.get('/linked-accounts', authenticate, authController.getLinkedAccounts);
+router.post('/remove-linked-account', authenticate, authController.removeLinkedAccount);
 router.delete('/data', authenticate, authController.clearUserData);
 
 export default router;

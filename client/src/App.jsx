@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import DashboardLayout from './components/layout/DashboardLayout';
 import AuthLayout from './components/layout/AuthLayout';
 
 const MediTrackApp = () => {
-  const { user, logout, loading } = useApp();
+  const { user, logout, loading } = useAuth();
   const [view, setView] = useState('landing');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState(() => {
@@ -73,9 +73,9 @@ const MediTrackApp = () => {
 
 const App = () => {
   return (
-    <AppProvider>
+    <AuthProvider>
       <MediTrackApp />
-    </AppProvider>
+    </AuthProvider>
   );
 };
 
