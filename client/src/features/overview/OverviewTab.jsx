@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Database, Users, FileText, ShoppingBag, Calculator, ArrowRight } from 'lucide-react';
 import { 
   useMedications, 
@@ -8,7 +8,6 @@ import {
 } from '../../hooks/useData';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
-import Badge from '../../components/ui/Badge';
 import StatCard from './StatCard';
 import PurchaseList from './PurchaseList';
 
@@ -104,6 +103,7 @@ const OverviewTab = () => {
   const memberCosts = getMemberCosts();
   const maxCost = memberCosts.length > 0 ? Math.max(...memberCosts.map(m => m.cost)) : 1;
 
+
   if (showPurchaseList) {
     return <PurchaseList onBack={() => setShowPurchaseList(false)} />;
   }
@@ -128,53 +128,6 @@ const OverviewTab = () => {
 
       {/* New Widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-6">
-        <Card className="border-l-4 border-l-amber-500">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold text-lg text-slate-800 dark:text-[#F8FAFC]">Buy This Month</h3>
-            <ShoppingBag className="text-amber-500" />
-          </div>
-          {purchaseItems.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-slate-500 dark:text-[#94a3b8] text-sm">No monthly medicines to purchase</p>
-              <p className="text-slate-400 dark:text-[#64748b] text-xs mt-2">
-                Add medication plans to see purchase list
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-3">
-                {purchaseItems.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 bg-amber-50 dark:bg-amber-500/10 rounded-lg">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-900 dark:text-[#F8FAFC] truncate">
-                        {item.medicationName}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-[#94a3b8] truncate">
-                        {item.packs} {item.packs === 1 ? 'pack' : 'packs'} required
-                        {item.members.length <= 2 
-                          ? ` for ${item.members.join(' & ')}`
-                          : ` for ${item.members.length} members`
-                        }
-                      </p>
-                    </div>
-                    <div className="ml-3 flex items-center gap-2">
-                      <Badge variant="warning">{item.packs} packs</Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Button 
-                variant="ghost" 
-                className="w-full mt-4 text-xs flex items-center justify-center gap-2 hover:bg-amber-50 dark:hover:bg-amber-500/10"
-                onClick={() => setShowPurchaseList(true)}
-              >
-                View Full Purchase List
-                <ArrowRight size={14} />
-              </Button>
-            </>
-          )}
-        </Card>
-
         <Card className="border-l-4 border-l-emerald-500">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-semibold text-lg text-slate-800 dark:text-[#F8FAFC]">Est. Monthly Cost</h3>

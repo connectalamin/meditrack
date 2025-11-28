@@ -482,33 +482,32 @@ const FamilyMemberDetails = ({ member, onBack }) => {
           ) : (
             <div className="grid gap-3">
               {filteredDocs.map(report => (
-                <div key={report.id} className="flex items-center justify-between p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg">
-                  <div className="flex items-center gap-4">
+                <div key={report.id} className="flex flex-col sm:flex-row sm:items-start gap-3 p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg">
+                  <div className="flex items-start gap-4 min-w-0 flex-1">
                     {report.type === 'Scanned Image' && report.title.startsWith('Extracted') ? (
-                      <div className="h-12 w-12 rounded-lg bg-slate-100 dark:bg-black overflow-hidden border border-slate-200 dark:border-slate-700">
+                      <div className="h-12 w-12 rounded-lg bg-slate-100 dark:bg-black overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
                         <div className="h-full w-full flex items-center justify-center bg-gray-200 dark:bg-gray-800">
                           <ImageIcon size={20} className="text-gray-400" />
                         </div>
                       </div>
                     ) : (
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>
+                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>
                         {report.category === 'Prescription' ? <ScrollText size={20} /> : <FileText size={20} />}
                       </div>
                     )}
                     
-                    <div>
-                      <h4 className="font-medium text-slate-900 dark:text-[#F8FAFC]">{report.title}</h4>
-                      <div className="flex items-center gap-2 mt-1">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-medium text-slate-900 dark:text-[#F8FAFC] mb-2">{report.title}</h4>
+                      <div className="flex flex-col gap-2">
                         <p className="text-xs text-slate-500 dark:text-[#94a3b8]">{new Date(report.date).toLocaleDateString()}</p>
-                        {report.type === 'Scanned Image' && (
-                          <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded-full">
-                            Image
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full whitespace-nowrap">
+                            {report.type === 'Scanned Image' ? 'Image' : report.type}
                           </span>
-                        )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <Badge>{report.type}</Badge>
                 </div>
               ))}
             </div>

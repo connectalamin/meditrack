@@ -383,7 +383,7 @@ const ReportsTab = () => {
               >
                 <option value="all">All Types</option>
                 <option value="PDF">PDF</option>
-                <option value="Scanned Image">Scanned Image</option>
+                <option value="Scanned Image">Image</option>
               </select>
             </div>
           </div>
@@ -418,62 +418,84 @@ const ReportsTab = () => {
           </Card>
         ) : (
           filteredAndSortedReports.map(report => (
-          <div key={report.id} className="flex items-center justify-between p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg group hover:border-emerald-500/50 transition-colors">
-            <div className="flex items-center gap-4">
-              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>
+          <div key={report.id} className="flex flex-col sm:flex-row sm:items-start gap-3 p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg group hover:border-emerald-500/50 transition-colors">
+            <div className="flex items-start gap-4 min-w-0 flex-1">
+              <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>
                 {report.category === 'Prescription' ? <ScrollText size={20} /> : <FileText size={20} />}
               </div>
-              <div>
-                <h4 className="font-medium text-slate-900 dark:text-[#F8FAFC]">{report.title}</h4>
-                <div className="flex items-center gap-2 mt-1">
+              <div className="min-w-0 flex-1">
+                <h4 className="font-medium text-slate-900 dark:text-[#F8FAFC] mb-2">{report.title}</h4>
+                <div className="flex flex-col gap-2">
                   <p className="text-xs text-slate-500 dark:text-[#94a3b8]">{new Date(report.date).toLocaleDateString()}</p>
-                  <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 dark:bg-[#27335D] dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
-                    {report.category || 'Report'}
-                  </span>
-                  {report.familyMemberName && (
-                    <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-full">
-                      {report.familyMemberName}
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 dark:bg-[#27335D] dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                      {report.category || 'Report'}
                     </span>
-                  )}
+                    {report.familyMemberName && (
+                      <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-full whitespace-nowrap">
+                        {report.familyMemberName}
+                      </span>
+                    )}
+                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full whitespace-nowrap">
+                      {report.type === 'Scanned Image' ? 'Image' : report.type}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Badge>{report.type}</Badge>
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                {report.fileUrl && (
-                  <>
-                    <button 
-                      onClick={() => handleView(report)} 
-                      className="text-slate-400 dark:text-[#94a3b8] hover:text-blue-500 p-2 transition-colors"
-                      title="View"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    <button 
-                      onClick={() => handleDownload(report)} 
-                      className="text-slate-400 dark:text-[#94a3b8] hover:text-emerald-500 p-2 transition-colors"
-                      title="Download"
-                    >
-                      <Download size={16} />
-                    </button>
-                  </>
-                )}
-                <button 
-                  onClick={() => handleEdit(report)} 
-                  className="text-slate-400 dark:text-[#94a3b8] hover:text-emerald-500 p-2 transition-colors"
-                  title="Edit"
-                >
-                  <Edit size={16} />
-                </button>
-                <button 
-                  onClick={() => handleDeleteClick(report.id, report.title)} 
-                  className="text-slate-400 dark:text-[#94a3b8] hover:text-red-500 p-2 transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+            <div className="flex items-center justify-between gap-2 w-full shrink-0 sm:self-start">
+              {report.fileUrl && (
+                <>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleView(report);
+                    }} 
+                    className="text-slate-400 dark:text-[#94a3b8] hover:text-blue-500 p-2 transition-colors touch-manipulation relative z-10"
+                    title="View"
+                    type="button"
+                  >
+                    <Eye size={16} />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleDownload(report);
+                    }} 
+                    className="text-slate-400 dark:text-[#94a3b8] hover:text-emerald-500 p-2 transition-colors touch-manipulation relative z-10"
+                    title="Download"
+                    type="button"
+                  >
+                    <Download size={16} />
+                  </button>
+                </>
+              )}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleEdit(report);
+                }} 
+                className="text-slate-400 dark:text-[#94a3b8] hover:text-emerald-500 p-2 transition-colors touch-manipulation relative z-10"
+                title="Edit"
+                type="button"
+              >
+                <Edit size={16} />
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleDeleteClick(report.id, report.title);
+                }} 
+                className="text-slate-400 dark:text-[#94a3b8] hover:text-red-500 p-2 transition-colors touch-manipulation relative z-10"
+                title="Delete"
+                type="button"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
           ))

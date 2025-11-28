@@ -8,7 +8,7 @@ import {
   Stethoscope, Thermometer, Droplet, Database, 
   Calculator, ShoppingBag, Share2, Link as LinkIcon, Download,
   ClipboardList, File, Check, FilePlus, ScrollText, Camera, ImageIcon,
-  Chrome, MapPin, BriefcaseMedical
+  Chrome, MapPin, BriefcaseMedical, Edit, ChevronDown
 } from 'lucide-react';
 import { 
   BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, Legend, PieChart, Pie
@@ -135,6 +135,18 @@ export default function MediTrackApp() {
 const DashboardLayout = ({ user, sidebarOpen, setSidebarOpen, handleSignOut, theme, toggleTheme }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (sidebarOpen && window.innerWidth < 768) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [sidebarOpen]);
+
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'appointments', label: 'Appointments', icon: Calendar },
@@ -151,48 +163,78 @@ const DashboardLayout = ({ user, sidebarOpen, setSidebarOpen, handleSignOut, the
     return 'Guest User';
   };
 
+  const handleNavClick = (itemId) => {
+    setActiveTab(itemId);
+    // Close sidebar on mobile after navigation
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[#111725]">
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-[#111725] border-r border-slate-200 dark:border-[#27335D] transition-all duration-300 flex flex-col fixed md:relative z-20 h-full shadow-lg dark:shadow-none`}>
-        <div className="p-6 flex items-center gap-3 border-b border-slate-200 dark:border-[#27335D]">
+      {/* Mobile Overlay Backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden transition-opacity duration-300"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      
+      <aside className={`${sidebarOpen ? 'w-64 translate-x-0' : '-translate-x-full md:translate-x-0 w-20'} bg-white dark:bg-[#111725] border-r border-slate-200 dark:border-[#27335D] transition-all duration-300 flex flex-col fixed md:relative z-40 h-full shadow-lg dark:shadow-none`}>
+        <div className="p-4 md:p-6 flex items-center gap-3 border-b border-slate-200 dark:border-[#27335D]">
           <div className="h-8 w-8 rounded-lg bg-emerald-500 dark:bg-[#34D399] flex items-center justify-center shrink-0 shadow-sm">
             <Activity className="h-5 w-5 text-white dark:text-[#111725]" />
           </div>
-          <span className={`font-bold text-xl tracking-tight transition-opacity duration-200 text-slate-900 dark:text-[#F8FAFC] ${!sidebarOpen && 'opacity-0 hidden'}`}>MediTrack</span>
+          <span className={`font-bold text-xl tracking-tight transition-opacity duration-200 text-slate-900 dark:text-[#F8FAFC] ${!sidebarOpen && 'opacity-0 hidden md:block'}`}>MediTrack</span>
         </div>
-        <nav className="flex-1 py-6 px-3 space-y-1">
+        <nav className="flex-1 py-4 md:py-6 px-2 md:px-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
-            <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${activeTab === item.id ? 'bg-emerald-50 text-emerald-600 dark:bg-[#34D399]/10 dark:text-[#34D399]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-[#94a3b8] dark:hover:bg-[#1B2430] dark:hover:text-[#F8FAFC]'}`}>
+            <button 
+              key={item.id} 
+              onClick={() => handleNavClick(item.id)} 
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${activeTab === item.id ? 'bg-emerald-50 text-emerald-600 dark:bg-[#34D399]/10 dark:text-[#34D399]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-[#94a3b8] dark:hover:bg-[#1B2430] dark:hover:text-[#F8FAFC]'}`}
+            >
               <item.icon className="h-5 w-5 shrink-0" />
-              <span className={`whitespace-nowrap transition-opacity duration-200 ${!sidebarOpen && 'opacity-0 hidden'}`}>{item.label}</span>
+              <span className={`whitespace-nowrap transition-opacity duration-200 ${!sidebarOpen && 'opacity-0 hidden md:block'}`}>{item.label}</span>
             </button>
           ))}
         </nav>
-        <div className="p-3 border-t border-slate-200 dark:border-[#27335D]">
+        <div className="p-2 md:p-3 border-t border-slate-200 dark:border-[#27335D]">
           <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-red-500 hover:bg-red-50 dark:text-[#ef4444] dark:hover:bg-[#ef4444]/10 transition-colors">
             <LogOut className="h-5 w-5 shrink-0" />
-            <span className={`whitespace-nowrap transition-opacity duration-200 ${!sidebarOpen && 'opacity-0 hidden'}`}>Sign Out</span>
+            <span className={`whitespace-nowrap transition-opacity duration-200 ${!sidebarOpen && 'opacity-0 hidden md:block'}`}>Sign Out</span>
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-[#0B101B]">
-        <header className="h-16 border-b border-slate-200 dark:border-[#27335D] bg-white/80 dark:bg-[#111725]/80 backdrop-blur-md flex items-center justify-between px-6 shadow-sm z-10">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1B2430] text-slate-500 dark:text-[#94a3b8]">{sidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}</button>
-            <h1 className="text-lg font-semibold text-slate-800 dark:text-[#F8FAFC] capitalize">{navItems.find(i => i.id === activeTab)?.label}</h1>
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-[#0B101B] md:ml-0">
+        <header className="h-14 md:h-16 border-b border-slate-200 dark:border-[#27335D] bg-white/80 dark:bg-[#111725]/80 backdrop-blur-md flex items-center justify-between px-3 md:px-6 shadow-sm z-10 sticky top-0">
+          <div className="flex items-center gap-2 md:gap-4">
+            <button 
+              onClick={() => setSidebarOpen(!sidebarOpen)} 
+              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1B2430] text-slate-500 dark:text-[#94a3b8] touch-manipulation"
+              aria-label="Toggle sidebar"
+            >
+              {sidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+            </button>
+            <h1 className="text-base md:text-lg font-semibold text-slate-800 dark:text-[#F8FAFC] capitalize truncate">{navItems.find(i => i.id === activeTab)?.label}</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1B2430] text-slate-500 dark:text-[#94a3b8] transition-colors">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
-            <div className="w-px h-6 bg-slate-200 dark:bg-[#27335D]" />
-            <div className="flex items-center gap-2">
-               <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-[#27335D] flex items-center justify-center border border-emerald-500/30"><User className="h-4 w-4 text-emerald-600 dark:text-[#34D399]" /></div>
-               <span className="text-sm font-medium hidden sm:block text-slate-600 dark:text-[#94a3b8]">{getDisplayName()}</span>
-            </div>
+          <div className="flex items-center gap-2 md:gap-4">
+            <button 
+              onClick={toggleTheme} 
+              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1B2430] text-slate-500 dark:text-[#94a3b8] transition-colors touch-manipulation"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <div className="w-px h-6 bg-slate-200 dark:bg-[#27335D] hidden sm:block" />
+            <UserDropdown user={user} getDisplayName={getDisplayName} handleSignOut={handleSignOut} />
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
+        <div className="flex-1 overflow-y-auto p-3 md:p-4 lg:p-8 relative">
             <div className="max-w-7xl mx-auto">
               {activeTab === 'overview' && <OverviewTab user={user} />}
               {activeTab === 'appointments' && <AppointmentsTab user={user} />}
@@ -435,14 +477,37 @@ const seedDemoData = async (user) => {
 
 const OverviewTab = ({ user }) => {
   const [stats, setStats] = useState({ meds: 0, family: 0, reports: 0 });
+  const [family, setFamily] = useState([]);
+  const [allPlans, setAllPlans] = useState([]);
 
   useEffect(() => {
     if(!user) return;
     const unsubMeds = onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'global_meds'), snap => setStats(s => ({...s, meds: snap.size})));
-    const unsubFam = onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'family'), snap => setStats(s => ({...s, family: snap.size})));
+    const unsubFam = onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'family'), snap => {
+      const members = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setStats(s => ({...s, family: snap.size}));
+      setFamily(members);
+    });
     const unsubRep = onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'reports'), snap => setStats(s => ({...s, reports: snap.size})));
     return () => { unsubMeds(); unsubFam(); unsubRep(); }
   }, [user]);
+
+  useEffect(() => {
+    if(!user || family.length === 0) return;
+    const unsubscribes = [];
+    family.forEach(member => {
+      const unsub = onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'family', member.id, 'plans'), (snap) => {
+        const plans = snap.docs.map(doc => ({ id: doc.id, memberId: member.id, memberName: member.name, ...doc.data() }));
+        setAllPlans(prev => {
+          const filtered = prev.filter(p => p.memberId !== member.id);
+          return [...filtered, ...plans];
+        });
+      });
+      unsubscribes.push(unsub);
+    });
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, [user, family]);
+
 
   return (
     <div className="space-y-6">
@@ -469,30 +534,6 @@ const OverviewTab = ({ user }) => {
 
       {/* New Widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-6">
-         <Card className="border-l-4 border-l-amber-500">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold text-lg text-slate-800 dark:text-[#F8FAFC]">Buy This Month</h3>
-                <ShoppingBag className="text-amber-500" />
-            </div>
-            <div className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-amber-50 dark:bg-amber-500/10 rounded-lg">
-                    <div>
-                        <p className="font-medium text-slate-900 dark:text-[#F8FAFC]">Losartan 50mg</p>
-                        <p className="text-xs text-slate-500 dark:text-[#94a3b8]">4 Packs required for Sarah</p>
-                    </div>
-                    <Badge variant="warning">Low Stock</Badge>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-amber-50 dark:bg-amber-500/10 rounded-lg">
-                    <div>
-                        <p className="font-medium text-slate-900 dark:text-[#F8FAFC]">Metformin 500mg</p>
-                        <p className="text-xs text-slate-500 dark:text-[#94a3b8]">9 Packs required for Family</p>
-                    </div>
-                    <Badge variant="warning">Buy Soon</Badge>
-                </div>
-            </div>
-            <Button variant="ghost" className="w-full mt-4 text-xs">View Full Purchase List</Button>
-         </Card>
-
          <Card className="border-l-4 border-l-emerald-500">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-lg text-slate-800 dark:text-[#F8FAFC]">Est. Monthly Cost</h3>
@@ -527,6 +568,7 @@ const OverviewTab = ({ user }) => {
 const MedicationDatabaseTab = ({ user }) => {
     const [meds, setMeds] = useState([]);
     const [showForm, setShowForm] = useState(false);
+    const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({ name: '', strength: '', price: '', packSize: '', unit: 'tablets' });
 
     useEffect(() => {
@@ -538,40 +580,78 @@ const MedicationDatabaseTab = ({ user }) => {
         return () => unsubscribe();
     }, [user]);
 
+    const handleEdit = (med) => {
+        setFormData({
+            name: med.name || '',
+            strength: med.strength || '',
+            price: med.price?.toString() || '',
+            packSize: med.packSize?.toString() || '1',
+            unit: med.unit || 'tablets'
+        });
+        setEditingId(med.id);
+        setShowForm(true);
+    };
+
+    const resetForm = () => {
+        setFormData({ name: '', strength: '', price: '', packSize: '', unit: 'tablets' });
+        setEditingId(null);
+        setShowForm(false);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if(!formData.name) return;
-        await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'global_meds'), {
+        
+        const medicationData = {
             ...formData,
             price: formData.price ? Number(formData.price) : 0, 
             packSize: formData.packSize ? Number(formData.packSize) : 1 
-        });
-        setFormData({ name: '', strength: '', price: '', packSize: '', unit: 'tablets' });
-        setShowForm(false);
+        };
+
+        try {
+            if (editingId) {
+                await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'global_meds', editingId), medicationData);
+            } else {
+                await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'global_meds'), medicationData);
+            }
+            resetForm();
+        } catch (error) {
+            console.error('Failed to save medication:', error);
+        }
     };
 
     const deleteItem = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'global_meds', id));
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">Global Medication Database</h2>
                     <p className="text-sm text-slate-500 dark:text-[#94a3b8]">Shared list of medicines for the family</p>
                 </div>
-                <Button onClick={() => setShowForm(!showForm)}>{showForm ? <X size={18} /> : <Plus size={18} />} Add New</Button>
+                <Button onClick={() => { resetForm(); setShowForm(true); }}>{showForm ? <X size={18} /> : <Plus size={18} />} {editingId ? 'Cancel Edit' : 'Add New'}</Button>
             </div>
 
             {showForm && (
                 <Card>
+                    {editingId && (
+                        <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg">
+                            <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">Editing: {meds.find(m => m.id === editingId)?.name}</p>
+                        </div>
+                    )}
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                             <div className="lg:col-span-2"><Input label="Name" placeholder="e.g. Napa" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
                             <Input label="Strength" placeholder="500mg" value={formData.strength} onChange={e => setFormData({...formData, strength: e.target.value})} />
                             <Input label="Price (Optional)" type="number" placeholder="0" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
                             <Input label="Qty Per Pack" type="number" placeholder="10" value={formData.packSize} onChange={e => setFormData({...formData, packSize: e.target.value})} />
                         </div>
-                        <div className="flex justify-end"><Button type="submit">Save to Database</Button></div>
+                        <div className="flex justify-end gap-2">
+                            {editingId && (
+                                <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>
+                            )}
+                            <Button type="submit">{editingId ? 'Update' : 'Save to Database'}</Button>
+                        </div>
                     </form>
                 </Card>
             )}
@@ -580,9 +660,30 @@ const MedicationDatabaseTab = ({ user }) => {
                 {meds.map(med => (
                     <Card key={med.id} className="p-4 flex flex-col justify-between group hover:border-emerald-500/50 transition-colors">
                         <div>
-                            <div className="flex justify-between items-start">
-                                <h3 className="font-bold text-slate-900 dark:text-[#F8FAFC]">{med.name}</h3>
-                                <button onClick={() => deleteItem(med.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                            <div className="flex justify-between items-start gap-2">
+                                <h3 className="font-bold text-slate-900 dark:text-[#F8FAFC] flex-1 truncate">{med.name}</h3>
+                                <div className="flex gap-1 shrink-0">
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEdit(med);
+                                        }} 
+                                        className="text-slate-400 hover:text-emerald-500 transition-colors p-1 touch-manipulation"
+                                        title="Edit"
+                                    >
+                                        <Edit size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteItem(med.id);
+                                        }} 
+                                        className="text-slate-400 hover:text-red-500 transition-colors p-1 touch-manipulation"
+                                        title="Delete"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
                             <p className="text-sm text-slate-500 dark:text-[#94a3b8]">{med.strength}</p>
                         </div>
@@ -982,33 +1083,32 @@ const FamilyMemberDetails = ({ user, member, onBack }) => {
                     ) : (
                         <div className="grid gap-3">
                             {filteredDocs.map(report => (
-                                <div key={report.id} className="flex items-center justify-between p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg">
-                                    <div className="flex items-center gap-4">
+                                <div key={report.id} className="flex flex-col sm:flex-row sm:items-start gap-3 p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg">
+                                    <div className="flex items-start gap-4 min-w-0 flex-1">
                                         {report.type === 'Scanned Image' && report.title.startsWith('Extracted') ? (
-                                            <div className="h-12 w-12 rounded-lg bg-slate-100 dark:bg-black overflow-hidden border border-slate-200 dark:border-slate-700">
+                                            <div className="h-12 w-12 rounded-lg bg-slate-100 dark:bg-black overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
                                                 <div className="h-full w-full flex items-center justify-center bg-gray-200 dark:bg-gray-800">
                                                     <ImageIcon size={20} className="text-gray-400" />
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>
+                                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>
                                                 {report.category === 'Prescription' ? <ScrollText size={20} /> : <FileText size={20} />}
                                             </div>
                                         )}
                                         
-                                        <div>
-                                            <h4 className="font-medium text-slate-900 dark:text-[#F8FAFC]">{report.title}</h4>
-                                            <div className="flex items-center gap-2 mt-1">
+                                        <div className="min-w-0 flex-1">
+                                            <h4 className="font-medium text-slate-900 dark:text-[#F8FAFC] mb-2">{report.title}</h4>
+                                            <div className="flex flex-col gap-2">
                                                 <p className="text-xs text-slate-500 dark:text-[#94a3b8]">{new Date(report.date).toLocaleDateString()}</p>
-                                                {report.type === 'Scanned Image' && (
-                                                    <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded-full">
-                                                        Image
+                                                <div className="flex flex-wrap gap-1.5 items-center">
+                                                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full whitespace-nowrap">
+                                                        {report.type === 'Scanned Image' ? 'Image' : report.type}
                                                     </span>
-                                                )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <Badge>{report.type}</Badge>
                                 </div>
                             ))}
                         </div>
@@ -1138,34 +1238,36 @@ const ReportsTab = ({ user }) => {
                     </div>
                 )}
 
-                <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div className="md:col-span-2">
-                        <Input label="Document Title" placeholder="e.g. Lab Report Jan 2024" value={title} onChange={e => setTitle(e.target.value)} className="mb-0" />
+                <form onSubmit={handleUpload} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="sm:col-span-2">
+                            <Input label="Document Title" placeholder="e.g. Lab Report Jan 2024" value={title} onChange={e => setTitle(e.target.value)} className="mb-0" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 dark:text-[#94a3b8] mb-1">Doc Type</label>
+                            <select 
+                                className="w-full bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                            >
+                                <option value="Report">Medical Report</option>
+                                <option value="Prescription">Prescription</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 dark:text-[#94a3b8] mb-1">Assign To</label>
+                            <select 
+                                className="w-full bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                value={selectedMember}
+                                onChange={(e) => setSelectedMember(e.target.value)}
+                            >
+                                <option value="">General (Unassigned)</option>
+                                {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Doc Type</label>
-                        <select 
-                            className="w-full bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-[#F8FAFC]"
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
-                        >
-                            <option value="Report">Medical Report</option>
-                            <option value="Prescription">Prescription</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Assign To</label>
-                        <select 
-                            className="w-full bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-[#F8FAFC]"
-                            value={selectedMember}
-                            onChange={(e) => setSelectedMember(e.target.value)}
-                        >
-                            <option value="">General (Unassigned)</option>
-                            {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                        </select>
-                    </div>
-                    <div className="md:col-span-4 flex justify-end">
-                        <Button type="submit" className="w-full md:w-auto" disabled={isScanning || !title}>
+                    <div className="flex justify-end">
+                        <Button type="submit" className="w-full sm:w-auto" disabled={isScanning || !title}>
                             {mode === 'ocr' ? <CheckCircle size={18} /> : <Upload size={18} />}
                             {mode === 'ocr' ? 'Save Scanned Document' : 'Upload File'}
                         </Button>
@@ -1173,31 +1275,35 @@ const ReportsTab = ({ user }) => {
                 </form>
              </Card>
 
-             <div className="grid gap-3">
+             <div className="space-y-3">
                 {reports.map(report => (
-                    <div key={report.id} className="flex items-center justify-between p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg">
-                        <div className="flex items-center gap-4">
-                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>
+                    <div key={report.id} className="flex flex-col sm:flex-row sm:items-start gap-3 p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg">
+                        <div className="flex items-start gap-4 min-w-0 flex-1">
+                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>
                                 {report.category === 'Prescription' ? <ScrollText size={20} /> : <FileText size={20} />}
                             </div>
-                            <div>
-                                <h4 className="font-medium text-slate-900 dark:text-[#F8FAFC]">{report.title}</h4>
-                                <div className="flex items-center gap-2 mt-1">
+                            <div className="min-w-0 flex-1">
+                                <h4 className="font-medium text-slate-900 dark:text-[#F8FAFC] mb-2">{report.title}</h4>
+                                <div className="flex flex-col gap-2">
                                     <p className="text-xs text-slate-500 dark:text-[#94a3b8]">{new Date(report.date).toLocaleDateString()}</p>
-                                    <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 dark:bg-[#27335D] dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
-                                        {report.category || 'Report'}
-                                    </span>
-                                    {report.familyMemberName && (
-                                        <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-full">
-                                            {report.familyMemberName}
+                                    <div className="flex flex-wrap gap-1.5 items-center">
+                                        <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 dark:bg-[#27335D] dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                                            {report.category || 'Report'}
                                         </span>
-                                    )}
+                                        {report.familyMemberName && (
+                                            <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-full whitespace-nowrap">
+                                                {report.familyMemberName}
+                                            </span>
+                                        )}
+                                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full whitespace-nowrap">
+                                            {report.type === 'Scanned Image' ? 'Image' : report.type}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <Badge>{report.type}</Badge>
-                            <button onClick={() => deleteItem(report.id)} className="text-slate-400 dark:text-[#94a3b8] hover:text-red-500 p-2"><Trash2 size={16} /></button>
+                        <div className="flex items-center justify-between gap-2 w-full shrink-0 sm:self-start">
+                            <button onClick={() => deleteItem(report.id)} className="text-slate-400 dark:text-[#94a3b8] hover:text-red-500 p-2 touch-manipulation" title="Delete"><Trash2 size={16} /></button>
                         </div>
                     </div>
                 ))}
