@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import DashboardLayout from './components/layout/DashboardLayout';
 import AuthLayout from './components/layout/AuthLayout';
+import OfflineSyncManager from './components/layout/OfflineSyncManager';
+import InstallAndStatusBanner from './components/layout/InstallAndStatusBanner';
 
 const MediTrackApp = () => {
   const { user, logout, loading } = useAuth();
@@ -54,6 +56,7 @@ const MediTrackApp = () => {
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} min-h-screen transition-colors duration-300`}>
       <div className="min-h-screen bg-slate-50 dark:bg-[#111725] text-slate-900 dark:text-[#F8FAFC] font-sans selection:bg-emerald-500/30 selection:text-emerald-900 dark:selection:bg-[#34D399] dark:selection:text-[#111725]">
+        <InstallAndStatusBanner />
         {user && view === 'dashboard' ? (
           <DashboardLayout 
             user={user} 
@@ -74,6 +77,7 @@ const MediTrackApp = () => {
 const App = () => {
   return (
     <AuthProvider>
+      <OfflineSyncManager />
       <MediTrackApp />
     </AuthProvider>
   );

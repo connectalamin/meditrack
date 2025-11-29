@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { X, Plus, Trash2, Edit } from 'lucide-react';
+import { X, Plus, Trash2, Edit, Search } from 'lucide-react';
 import { 
   useMedications,
   useCreateMedication,
@@ -20,10 +20,53 @@ const MedicationDatabaseTab = () => {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: '', strength: '', price: '', packSize: '', unit: 'tablets' });
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [infoFilter, setInfoFilter] = useState('all'); // 'all' | 'missingPrice' | 'missingInfo'
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const sortedMeds = useMemo(() => {
     return [...medications].sort((a, b) => a.name.localeCompare(b.name));
   }, [medications]);
+
+  const filteredMeds = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+
+    const bySearch = !term
+      ? sortedMeds
+      : sortedMeds.filter((med) => {
+          const name = med.name?.toLowerCase() || '';
+          const strength = med.strength?.toLowerCase() || '';
+          return name.includes(term) || strength.includes(term);
+        });
+
+    if (infoFilter === 'missingPrice') {
+      return bySearch.filter((med) => !med.price || med.price <= 0);
+    }
+
+    if (infoFilter === 'missingInfo') {
+      return bySearch.filter((med) => {
+        const noPrice = !med.price || med.price <= 0;
+        const noStrength = !med.strength;
+        const noPack = !med.packSize || med.packSize <= 0;
+        return noPrice || noStrength || noPack;
+      });
+    }
+
+    return bySearch;
+  }, [sortedMeds, searchTerm, infoFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredMeds.length / itemsPerPage));
+
+  const paginatedMeds = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredMeds.slice(start, start + itemsPerPage);
+  }, [filteredMeds, currentPage]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
 
   const resetForm = () => {
     setFormData({ name: '', strength: '', price: '', packSize: '', unit: 'tablets' });
@@ -85,14 +128,63 @@ const MedicationDatabaseTab = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">Global Medication Database</h2>
           <p className="text-sm text-slate-500 dark:text-[#94a3b8]">Shared list of medicines for the family</p>
         </div>
-        <Button onClick={() => { resetForm(); setShowForm(true); }}>
-          {showForm ? <X size={18} /> : <Plus size={18} />} {editingId ? 'Cancel Edit' : 'Add New'}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+          <div className="relative flex-1">
+            <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400 dark:text-[#64748b]">
+              <Search size={16} />
+            </span>
+            <input
+              type="text"
+              placeholder="Search medicines..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-[#27335D] bg-white dark:bg-[#111725] text-sm text-slate-900 dark:text-[#F8FAFC] placeholder-slate-400 dark:placeholder-[#64748b] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
+            />
+          </div>
+          <div className="flex items-center gap-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setInfoFilter('all')}
+              className={`px-2 py-1 rounded-full border ${
+                infoFilter === 'all'
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-[#34D399] dark:bg-[#34D399]/10 dark:text-[#34D399]'
+                  : 'border-slate-200 dark:border-[#27335D] text-slate-500 dark:text-[#94a3b8] hover:bg-slate-100 dark:hover:bg-[#27335D]'
+              }`}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setInfoFilter('missingPrice')}
+              className={`px-2 py-1 rounded-full border ${
+                infoFilter === 'missingPrice'
+                  ? 'border-amber-500 bg-amber-50 text-amber-700 dark:border-amber-400 dark:bg-amber-500/10 dark:text-amber-300'
+                  : 'border-slate-200 dark:border-[#27335D] text-slate-500 dark:text-[#94a3b8] hover:bg-slate-100 dark:hover:bg-[#27335D]'
+              }`}
+            >
+              Missing price
+            </button>
+            <button
+              type="button"
+              onClick={() => setInfoFilter('missingInfo')}
+              className={`px-2 py-1 rounded-full border ${
+                infoFilter === 'missingInfo'
+                  ? 'border-red-500 bg-red-50 text-red-700 dark:border-red-400 dark:bg-red-500/10 dark:text-red-300'
+                  : 'border-slate-200 dark:border-[#27335D] text-slate-500 dark:text-[#94a3b8] hover:bg-slate-100 dark:hover:bg-[#27335D]'
+              }`}
+            >
+              Incomplete info
+            </button>
+          </div>
+          <Button onClick={() => { resetForm(); setShowForm(true); }} className="whitespace-nowrap">
+            {showForm ? <X size={18} /> : <Plus size={18} />} {editingId ? 'Cancel Edit' : 'Add New'}
+          </Button>
+        </div>
       </div>
 
       {showForm && (
@@ -118,7 +210,7 @@ const MedicationDatabaseTab = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sortedMeds.map(med => (
+        {paginatedMeds.map(med => (
           <Card key={med.id} className="p-4 flex flex-col justify-between group hover:border-emerald-500/50 transition-colors">
             <div>
               <div className="flex justify-between items-start">
@@ -151,6 +243,65 @@ const MedicationDatabaseTab = () => {
           </Card>
         ))}
       </div>
+
+      {/* Pagination */}
+      {filteredMeds.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-[#94a3b8]">
+          <div>
+            Showing{' '}
+            <span className="font-medium text-slate-700 dark:text-[#F8FAFC]">
+              {(currentPage - 1) * itemsPerPage + 1}
+            </span>{' '}
+            -{' '}
+            <span className="font-medium text-slate-700 dark:text-[#F8FAFC]">
+              {Math.min(currentPage * itemsPerPage, filteredMeds.length)}
+            </span>{' '}
+            of{' '}
+            <span className="font-medium text-slate-700 dark:text-[#F8FAFC]">
+              {filteredMeds.length}
+            </span>{' '}
+            medicines
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-2 py-1 rounded border border-slate-200 dark:border-[#27335D] text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-[#27335D]"
+            >
+              Prev
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const page = idx + 1;
+                const isActive = page === currentPage;
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`min-w-[28px] h-7 rounded text-xs flex items-center justify-center border ${
+                      isActive
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-600 dark:border-[#34D399] dark:bg-[#34D399]/10 dark:text-[#34D399]'
+                        : 'border-slate-200 dark:border-[#27335D] hover:bg-slate-100 dark:hover:bg-[#27335D]'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 rounded border border-slate-200 dark:border-[#27335D] text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-[#27335D]"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={deleteConfirm.isOpen}

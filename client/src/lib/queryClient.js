@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 
-// Create a query client with default options
+// Create a query client with default options (no JSX here to keep this file pure JS)
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

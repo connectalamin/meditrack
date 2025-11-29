@@ -462,3 +462,18 @@ export const purchaseListAPI = {
   },
 };
 
+// Purchase List Logs API
+export const purchaseListLogsAPI = {
+  getAll: async () => {
+    const response = await apiRequest('/purchase-list/logs');
+    return response.logs || [];
+  },
+  create: async (log) => {
+    const response = await apiRequest('/purchase-list/logs', {
+      method: 'POST',
+      body: JSON.stringify(log),
+    });
+    return response.log;
+  },
+};
+

@@ -161,8 +161,20 @@ const FamilyTab = () => {
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-[#F8FAFC]">{member.name}</h3>
             <p className="text-emerald-600 dark:text-[#34D399] text-sm font-medium mb-1">{member.relation}</p>
-            {!isOwnMember(member) && (
-              <p className="text-xs text-slate-400 dark:text-[#64748b] italic">From linked account</p>
+            {!isOwnMember(member) ? (
+              <div className="flex flex-col items-center gap-1 mt-0.5">
+                <p className="text-xs text-slate-400 dark:text-[#64748b] italic">
+                  From linked account
+                </p>
+                {isMainLinkedAccountSelf(member) && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-500/30">
+                    Account owner
+                  </span>
+                )}
+              </div>
+            ) : (
+              // Invisible placeholder line so the "View Profile" button lines up
+              <p className="text-xs mt-0.5 opacity-0 select-none">placeholder</p>
             )}
             <Button variant="outline" className="w-full text-xs h-8 mt-4">View Profile</Button>
           </div>

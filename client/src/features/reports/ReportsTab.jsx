@@ -418,32 +418,35 @@ const ReportsTab = () => {
           </Card>
         ) : (
           filteredAndSortedReports.map(report => (
-          <div key={report.id} className="flex flex-col sm:flex-row sm:items-start gap-3 p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg group hover:border-emerald-500/50 transition-colors">
-            <div className="flex items-start gap-4 min-w-0 flex-1">
+          <div
+            key={report.id}
+            className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg group hover:border-emerald-500/50 transition-colors"
+          >
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>
                 {report.category === 'Prescription' ? <ScrollText size={20} /> : <FileText size={20} />}
               </div>
               <div className="min-w-0 flex-1">
-                <h4 className="font-medium text-slate-900 dark:text-[#F8FAFC] mb-2">{report.title}</h4>
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs text-slate-500 dark:text-[#94a3b8]">{new Date(report.date).toLocaleDateString()}</p>
-                  <div className="flex flex-wrap gap-1.5 items-center">
-                    <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 dark:bg-[#27335D] dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700 whitespace-nowrap">
-                      {report.category || 'Report'}
+                <h4 className="font-medium text-slate-900 dark:text-[#F8FAFC] mb-1">{report.title}</h4>
+                <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                  <span className="text-slate-500 dark:text-[#94a3b8] whitespace-nowrap">
+                    {new Date(report.date).toLocaleDateString()}
+                  </span>
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 dark:bg-[#27335D] dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                    {report.category || 'Report'}
+                  </span>
+                  {report.familyMemberName && (
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-full whitespace-nowrap">
+                      {report.familyMemberName}
                     </span>
-                    {report.familyMemberName && (
-                      <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-full whitespace-nowrap">
-                        {report.familyMemberName}
-                      </span>
-                    )}
-                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full whitespace-nowrap">
-                      {report.type === 'Scanned Image' ? 'Image' : report.type}
-                    </span>
-                  </div>
+                  )}
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full whitespace-nowrap">
+                    {report.type === 'Scanned Image' ? 'Image' : report.type}
+                  </span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-between gap-2 w-full shrink-0 sm:self-start">
+            <div className="flex items-center justify-end gap-1.5 w-full sm:w-auto sm:ml-4 shrink-0">
               {report.fileUrl && (
                 <>
                   <button 
@@ -451,7 +454,7 @@ const ReportsTab = () => {
                       e.stopPropagation();
                       e.preventDefault();
                       handleView(report);
-                    }} 
+                    }}
                     className="text-slate-400 dark:text-[#94a3b8] hover:text-blue-500 p-2 transition-colors touch-manipulation relative z-10"
                     title="View"
                     type="button"
@@ -463,7 +466,7 @@ const ReportsTab = () => {
                       e.stopPropagation();
                       e.preventDefault();
                       handleDownload(report);
-                    }} 
+                    }}
                     className="text-slate-400 dark:text-[#94a3b8] hover:text-emerald-500 p-2 transition-colors touch-manipulation relative z-10"
                     title="Download"
                     type="button"

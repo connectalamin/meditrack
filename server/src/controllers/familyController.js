@@ -2,11 +2,57 @@ import prisma from '../config/database.js';
 
 export const getFamilyMembers = async (req, res, next) => {
   try {
-    // Get user's linked family ID
+    // Get user's linked family ID and basic info
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { linkedFamilyId: true }
+      select: { id: true, email: true, displayName: true, linkedFamilyId: true }
     });
+
+    // Ensure the current user always has a "Self" family member card
+    if (user) {
+      const existingSelf = await prisma.familyMember.findFirst({
+        where: { userId: user.id, relation: 'Self' }
+      });
+
+      if (!existingSelf) {
+        await prisma.familyMember.create({
+          data: {
+            userId: user.id,
+            name: user.displayName || (user.email ? user.email.split('@')[0] : 'Me'),
+            relation: 'Self',
+            age: null,
+            lastDoctorVisit: null
+          }
+        });
+      }
+    }
+
+    // If there is a linked family account, ensure that account also has a "Self" card
+    let linkedUser = null;
+    if (user?.linkedFamilyId) {
+      linkedUser = await prisma.user.findUnique({
+        where: { id: user.linkedFamilyId },
+        select: { id: true, email: true, displayName: true }
+      });
+
+      if (linkedUser) {
+        const linkedSelf = await prisma.familyMember.findFirst({
+          where: { userId: linkedUser.id, relation: 'Self' }
+        });
+
+        if (!linkedSelf) {
+          await prisma.familyMember.create({
+            data: {
+              userId: linkedUser.id,
+              name: linkedUser.displayName || (linkedUser.email ? linkedUser.email.split('@')[0] : 'Family Owner'),
+              relation: 'Self',
+              age: null,
+              lastDoctorVisit: null
+            }
+          });
+        }
+      }
+    }
 
     // Fetch family members from both current user and linked family
     const userIds = [req.user.id];

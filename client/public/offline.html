@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediTrack - Offline</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #020617;
+        color: #e5e7eb;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+      .card {
+        padding: 2rem 2.5rem;
+        border-radius: 1rem;
+        background: #020617;
+        border: 1px solid #1f2937;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.8);
+        max-width: 420px;
+        text-align: center;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        color: #f9fafb;
+      }
+      p {
+        font-size: 0.95rem;
+        color: #9ca3af;
+        margin-bottom: 1.25rem;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        background: rgba(56, 189, 248, 0.1);
+        color: #7dd3fc;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        margin-bottom: 0.75rem;
+      }
+      .dot {
+        width: 0.55rem;
+        height: 0.55rem;
+        border-radius: 999px;
+        background: #f97316;
+        box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.25);
+      }
+      .hint {
+        font-size: 0.8rem;
+        color: #6b7280;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card" role="status" aria-live="polite">
+      <div class="badge">
+        <span class="dot" aria-hidden="true"></span>
+        Offline mode
+      </div>
+      <h1>You’re currently offline</h1>
+      <p>
+        MediTrack is still installed on this device. Some data may be
+        unavailable until you’re back online.
+      </p>
+      <p class="hint">
+        When your connection is restored, reopen the app to sync the latest
+        medications and health information.
+      </p>
+    </main>
+  </body>
+  </html>
+
+

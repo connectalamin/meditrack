@@ -91,3 +91,13 @@ export const purchaseListItemSchema = z.object({
 
 export const updatePurchaseListItemSchema = purchaseListItemSchema.partial();
 
+// Purchase list log schemas
+export const purchaseListLogSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  content: z.string().min(1, 'Content is required'),
+  totalItems: z.number().min(0),
+  totalQuantity: z.number().min(0),
+  totalCost: z.number().min(0),
+});
+
+

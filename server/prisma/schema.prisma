@@ -17,12 +17,13 @@ model User {
   updatedAt      DateTime @updatedAt
 
   // Relations
-  devices         Device[]
-  appointments    Appointment[]
-  familyMembers   FamilyMember[]
-  medications     Medication[]
-  reports         Report[]
+  devices           Device[]
+  appointments      Appointment[]
+  familyMembers     FamilyMember[]
+  medications       Medication[]
+  reports           Report[]
   purchaseListItems PurchaseListItem[]
+  purchaseListLogs  PurchaseListLog[]
 
   @@map("users")
 }
@@ -156,5 +157,20 @@ model PurchaseListItem {
   medication Medication? @relation(fields: [medicationId], references: [id], onDelete: SetNull)
 
   @@map("purchase_list_items")
+}
+
+model PurchaseListLog {
+  id           String   @id @default(cuid())
+  userId       String
+  title        String
+  content      String
+  totalItems   Int
+  totalQuantity Int
+  totalCost    Float
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_list_logs")
 }
 

@@ -369,11 +369,12 @@ const FamilyMemberDetails = ({ member, onBack }) => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-slate-500 mb-1">Select Medicine</label>
-                  <select 
+                                <select 
                     className="w-full bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-[#F8FAFC]"
                     value={newPlan.medId}
                     onChange={e => setNewPlan({...newPlan, medId: e.target.value})}
                     disabled={!!editingPlanId}
+                    size={Math.min(7, medications.length + 1)}
                   >
                     <option value="">Select from Database...</option>
                     {medications.map(m => <option key={m.id} value={m.id}>{m.name} ({m.strength})</option>)}

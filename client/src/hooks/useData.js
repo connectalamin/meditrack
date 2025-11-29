@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
 import * as api from '../utils/api';
+import { enqueueMutation } from '../utils/offlineQueue';
 
 // Default cache settings (5 minutes)
 const DEFAULT_STALE_TIME = 5 * 60 * 1000;
@@ -512,6 +513,33 @@ export const useDeletePurchaseListItem = () => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['purchaseList'] });
+    },
+  });
+};
+
+// Purchase List Logs
+export const usePurchaseListLogs = () => {
+  return useQuery({
+    queryKey: ['purchaseListLogs'],
+    queryFn: () => api.purchaseListLogsAPI.getAll(),
+    staleTime: DEFAULT_STALE_TIME,
+    gcTime: DEFAULT_GC_TIME,
+  });
+};
+
+export const useCreatePurchaseListLog = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (log) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        // Queue log for background sync when back online
+        enqueueMutation('purchaseListLog:create', log);
+        return null;
+      }
+      return api.purchaseListLogsAPI.create(log);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchaseListLogs'] });
     },
   });
 };

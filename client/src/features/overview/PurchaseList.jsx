@@ -7,9 +7,11 @@ import {
   useCreatePurchaseListItem,
   useUpdatePurchaseListItem,
   useDeletePurchaseListItem,
-  useUpdatePlan
+  useUpdatePlan,
+  usePurchaseListLogs,
+  useCreatePurchaseListLog
 } from '../../hooks/useData';
-import { ArrowLeft, ShoppingBag, Users, Download, FileText, File, Check, ChevronDown, Copy, Plus, Edit, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Download, FileText, File, Check, ChevronDown, Copy, Plus, Edit, Trash2, X, History } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -26,6 +28,8 @@ const PurchaseList = ({ onBack }) => {
   const [editingItem, setEditingItem] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
   const [formData, setFormData] = useState({ medicationId: '', medicationName: '', quantity: '', price: '' });
+  const [savingLog, setSavingLog] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
   
   const contentRef = useRef(null);
   const downloadMenuRef = useRef(null);
@@ -34,11 +38,13 @@ const PurchaseList = ({ onBack }) => {
   const { data: medications = [] } = useMedications();
   const { data: plans = {} } = useAllPlans();
   const { data: purchaseListItems = [] } = usePurchaseListItems();
+  const { data: purchaseListLogs = [] } = usePurchaseListLogs();
   
   const createPurchaseListItem = useCreatePurchaseListItem();
   const updatePurchaseListItem = useUpdatePurchaseListItem();
   const deletePurchaseListItem = useDeletePurchaseListItem();
   const updatePlan = useUpdatePlan();
+  const createPurchaseListLog = useCreatePurchaseListLog();
 
   // Reset form
   const resetForm = () => {
@@ -234,6 +240,78 @@ const PurchaseList = ({ onBack }) => {
     return text;
   };
 
+  // Save current list as a log entry
+  const handleSaveLog = async () => {
+    if (allMedicines.length === 0 || savingLog) return;
+    setSavingLog(true);
+    try {
+      const date = new Date();
+      const title = `Purchase List - ${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      const content = generateTextContent();
+
+      await createPurchaseListLog.mutateAsync({
+        title,
+        content,
+        totalItems: allMedicines.length,
+        totalQuantity: totalPacks,
+        totalCost,
+      });
+      // After save, go to logs page
+      setShowLogs(true);
+    } catch (error) {
+      console.error('Error saving purchase list log:', error);
+      alert('Failed to save purchase list log.');
+    } finally {
+      setSavingLog(false);
+    }
+  };
+
+  // Download a single log as PDF
+  const downloadLogAsPDF = async (log) => {
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+
+      const createdAt = new Date(log.createdAt);
+      const dateString = createdAt.toLocaleString();
+
+      doc.setFontSize(16);
+      doc.text(log.title || 'Purchase List', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Saved on: ${dateString}`, 14, 28);
+      doc.text(
+        `Medicines: ${log.totalItems} • Quantity: ${log.totalQuantity} • Estimated Cost: ${log.totalCost.toLocaleString()} BDT`,
+        14,
+        34
+      );
+
+      doc.setFontSize(10);
+      const leftMargin = 14;
+      let y = 44;
+      const lineHeight = 5;
+      const maxLineWidth = 180;
+
+      const lines = doc.splitTextToSize(log.content || '', maxLineWidth);
+      lines.forEach((line) => {
+        if (y > 280) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(line, leftMargin, y);
+        y += lineHeight;
+      });
+
+      doc.save(
+        `${(log.title || 'purchase-list')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')}-${createdAt.toISOString().split('T')[0]}.pdf`
+      );
+    } catch (error) {
+      console.error('Error generating log PDF:', error);
+      alert('PDF generation for this log failed.');
+    }
+  };
+
   // Download as Text
   const downloadAsText = () => {
     const text = generateTextContent();
@@ -406,24 +484,48 @@ const PurchaseList = ({ onBack }) => {
             <p className="text-slate-500 dark:text-[#94a3b8] mt-1">Manage your medicine purchase list</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-1 sm:gap-2 whitespace-nowrap">
           <Button
             variant="outline"
             onClick={handleCopyText}
-            className="flex items-center gap-2"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 text-xs sm:text-sm"
           >
-            {textCopied ? <Check size={16} /> : <Copy size={16} />}
-            {textCopied ? 'Copied!' : 'Copy Text'}
+            {textCopied ? <Check size={14} /> : <Copy size={14} />}
+            <span className="hidden sm:inline">
+              {textCopied ? 'Copied!' : 'Copy Text'}
+            </span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleSaveLog}
+            disabled={allMedicines.length === 0 || savingLog}
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 text-xs sm:text-sm"
+          >
+            <FileText size={14} />
+            <span className="hidden sm:inline">
+              {savingLog ? 'Saving...' : 'Save to Log'}
+            </span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowLogs((prev) => !prev)}
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 text-xs sm:text-sm"
+            disabled={purchaseListLogs.length === 0}
+          >
+            <History size={14} />
+            <span className="hidden sm:inline">
+              {showLogs ? 'Back to List' : 'View Logs'}
+            </span>
           </Button>
           <div className="relative" ref={downloadMenuRef}>
             <Button
               variant="outline"
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 text-xs sm:text-sm"
               onClick={() => setShowDownloadMenu(!showDownloadMenu)}
             >
-              <Download size={16} />
-              Download
-              <ChevronDown size={16} className={`transition-transform ${showDownloadMenu ? 'rotate-180' : ''}`} />
+              <Download size={14} />
+              <span className="hidden sm:inline">Download</span>
+              <ChevronDown size={14} className={`transition-transform ${showDownloadMenu ? 'rotate-180' : ''}`} />
             </Button>
             {showDownloadMenu && (
               <div className="absolute right-0 top-full mt-1 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg shadow-lg z-10 min-w-[180px]">
@@ -453,113 +555,116 @@ const PurchaseList = ({ onBack }) => {
         </div>
       </div>
 
-      {/* Options Card */}
-      <Card className="py-3">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="includeMonthly"
-              checked={includeMonthly}
-              onChange={(e) => setIncludeMonthly(e.target.checked)}
-              className="w-4 h-4 text-emerald-600 bg-white border-slate-300 rounded focus:ring-emerald-500 dark:bg-[#1B2430] dark:border-[#27335D]"
-            />
-            <label htmlFor="includeMonthly" className="text-sm font-medium text-slate-900 dark:text-[#F8FAFC] cursor-pointer">
-              Include Monthly Medicines
-            </label>
-          </div>
-
-          {includeMonthly && (
-            <div className="ml-5 space-y-1.5 border-l-2 border-slate-200 dark:border-[#27335D] pl-3">
-              <div className="space-y-1">
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="memberSelection"
-                    value="all"
-                    checked={monthlyMemberSelection === 'all'}
-                    onChange={(e) => setMonthlyMemberSelection(e.target.value)}
-                    className="w-3.5 h-3.5 text-emerald-600"
-                  />
-                  <span className="text-xs text-slate-700 dark:text-[#F8FAFC]">All Family Members</span>
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="memberSelection"
-                    value="select"
-                    checked={monthlyMemberSelection === 'select'}
-                    onChange={(e) => setMonthlyMemberSelection(e.target.value)}
-                    className="w-3.5 h-3.5 text-emerald-600"
-                  />
-                  <span className="text-xs text-slate-700 dark:text-[#F8FAFC]">Select Family Members</span>
+      {/* Main content vs Logs page */}
+      {!showLogs ? (
+        <>
+          {/* Options Card */}
+          <Card className="py-3">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="includeMonthly"
+                  checked={includeMonthly}
+                  onChange={(e) => setIncludeMonthly(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 bg-white border-slate-300 rounded focus:ring-emerald-500 dark:bg-[#1B2430] dark:border-[#27335D]"
+                />
+                <label htmlFor="includeMonthly" className="text-sm font-medium text-slate-900 dark:text-[#F8FAFC] cursor-pointer">
+                  Include Monthly Medicines
                 </label>
               </div>
 
-              {monthlyMemberSelection === 'select' && (
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 ml-4">
-                  {family.map(member => (
-                    <label key={member.id} className="flex items-center gap-1.5 cursor-pointer">
+              {includeMonthly && (
+                <div className="ml-5 space-y-1.5 border-l-2 border-slate-200 dark:border-[#27335D] pl-3">
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
                       <input
-                        type="checkbox"
-                        checked={selectedMembers.includes(member.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedMembers([...selectedMembers, member.id]);
-                          } else {
-                            setSelectedMembers(selectedMembers.filter(id => id !== member.id));
-                          }
-                        }}
+                        type="radio"
+                        name="memberSelection"
+                        value="all"
+                        checked={monthlyMemberSelection === 'all'}
+                        onChange={(e) => setMonthlyMemberSelection(e.target.value)}
                         className="w-3.5 h-3.5 text-emerald-600"
                       />
-                      <span className="text-xs text-slate-600 dark:text-[#94a3b8]">
-                        {member.name} {member.relation && `(${member.relation})`}
-                      </span>
+                      <span className="text-xs text-slate-700 dark:text-[#F8FAFC]">All Family Members</span>
                     </label>
-                  ))}
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="memberSelection"
+                        value="select"
+                        checked={monthlyMemberSelection === 'select'}
+                        onChange={(e) => setMonthlyMemberSelection(e.target.value)}
+                        className="w-3.5 h-3.5 text-emerald-600"
+                      />
+                      <span className="text-xs text-slate-700 dark:text-[#F8FAFC]">Select Family Members</span>
+                    </label>
+                  </div>
+
+                  {monthlyMemberSelection === 'select' && (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 ml-4">
+                      {family.map(member => (
+                        <label key={member.id} className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedMembers.includes(member.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedMembers([...selectedMembers, member.id]);
+                              } else {
+                                setSelectedMembers(selectedMembers.filter(id => id !== member.id));
+                              }
+                            }}
+                            className="w-3.5 h-3.5 text-emerald-600"
+                          />
+                          <span className="text-xs text-slate-600 dark:text-[#94a3b8]">
+                            {member.name} {member.relation && `(${member.relation})`}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </Card>
+          </Card>
 
-      {/* Summary Card */}
-      <Card className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 border-l-4 border-l-amber-500">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg">
-              <ShoppingBag className="text-amber-600 dark:text-amber-400" size={24} />
+          {/* Summary Card */}
+          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 border-l-4 border-l-amber-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg">
+                  <ShoppingBag className="text-amber-600 dark:text-amber-400" size={24} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Total Items</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{allMedicines.length} Medicines</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg">
+                  <ShoppingBag className="text-amber-600 dark:text-amber-400" size={24} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Total Quantity</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{totalPacks} {totalPacks === 1 ? 'Item' : 'Items'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg">
+                  <ShoppingBag className="text-emerald-600 dark:text-emerald-400" size={24} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Estimated Cost</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{totalCost.toLocaleString()} BDT</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Total Items</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{allMedicines.length} Medicines</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg">
-              <ShoppingBag className="text-amber-600 dark:text-amber-400" size={24} />
-            </div>
-            <div>
-              <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Total Quantity</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{totalPacks} {totalPacks === 1 ? 'Item' : 'Items'}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg">
-              <ShoppingBag className="text-emerald-600 dark:text-emerald-400" size={24} />
-            </div>
-            <div>
-              <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Estimated Cost</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{totalCost.toLocaleString()} BDT</p>
-            </div>
-          </div>
-        </div>
-      </Card>
+          </Card>
 
-      {/* Add/Edit Form */}
-      {showAddForm && (
-        <Card>
+          {/* Add/Edit Form */}
+          {showAddForm && (
+            <Card>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-[#F8FAFC]">
               {editingItem ? 'Edit Medicine' : 'Add Medicine'}
@@ -577,6 +682,7 @@ const PurchaseList = ({ onBack }) => {
                 className="w-full bg-white dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded-lg px-4 py-2.5 text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 value={formData.medicationId}
                 onChange={(e) => handleMedicationSelect(e.target.value)}
+                size={Math.min(7, medications.length + 1)}
               >
                 <option value="">Select from Database...</option>
                 {medications.map(m => (
@@ -619,12 +725,12 @@ const PurchaseList = ({ onBack }) => {
               </Button>
             </div>
           </form>
-        </Card>
-      )}
+            </Card>
+          )}
 
-      {/* Medicines List */}
-      {allMedicines.length === 0 ? (
-        <Card>
+          {/* Medicines List */}
+          {allMedicines.length === 0 ? (
+            <Card>
           <div className="text-center py-12">
             <ShoppingBag className="mx-auto text-slate-400 dark:text-[#94a3b8] mb-4" size={48} />
             <p className="text-slate-500 dark:text-[#94a3b8] text-lg">No medicines in purchase list</p>
@@ -636,10 +742,10 @@ const PurchaseList = ({ onBack }) => {
               )}
             </p>
           </div>
-        </Card>
-      ) : (
-        <div ref={contentRef} className="space-y-6">
-          {/* Medicines Section */}
+            </Card>
+          ) : (
+            <div ref={contentRef} className="space-y-6">
+              {/* Medicines Section */}
           {getNormalMedicines().length > 0 && (
             <Card>
               <div className="flex justify-between items-center mb-4">
@@ -711,7 +817,7 @@ const PurchaseList = ({ onBack }) => {
             </Card>
           )}
 
-          {/* Monthly Medicines Section */}
+              {/* Monthly Medicines Section */}
           {includeMonthly && getMonthlyMedicines().length > 0 && (
             <Card>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-[#F8FAFC] mb-4">Monthly Medicines</h3>
@@ -763,17 +869,86 @@ const PurchaseList = ({ onBack }) => {
             </Card>
           )}
 
-          {/* Show add button if no medicines */}
-          {getNormalMedicines().length === 0 && !showAddForm && (
-            <Card>
-              <div className="text-center py-8">
-                <Button onClick={() => setShowAddForm(true)}>
-                  <Plus size={16} /> Add Medicine
-                </Button>
-              </div>
-            </Card>
+              {/* Show add button if no medicines */}
+              {getNormalMedicines().length === 0 && !showAddForm && (
+                <Card>
+                  <div className="text-center py-8">
+                    <Button onClick={() => setShowAddForm(true)}>
+                      <Plus size={16} /> Add Medicine
+                    </Button>
+                  </div>
+                </Card>
+              )}
+            </div>
           )}
-        </div>
+        </>
+      ) : (
+        // Logs "page"
+        <Card>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-[#F8FAFC] mb-3">
+            Previous Purchase Lists
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-4">
+            Select a log to view the full text or download as PDF.
+          </p>
+          {purchaseListLogs.length === 0 ? (
+            <p className="text-sm text-slate-500 dark:text-[#94a3b8]">
+              No logs saved yet.
+            </p>
+          ) : (
+            <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+              {purchaseListLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="border border-slate-100 dark:border-[#27335D] rounded-lg p-3 bg-slate-50/60 dark:bg-[#111725]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-[#F8FAFC]">
+                        {log.title}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-[#94a3b8] mt-0.5">
+                        {new Date(log.createdAt).toLocaleString()} • {log.totalItems} meds •{' '}
+                        {log.totalQuantity} items • {log.totalCost.toLocaleString()} BDT
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="px-2 py-1 text-xs"
+                        onClick={() => {
+                          const alreadyOpen = document.getElementById(`log-text-${log.id}`);
+                          if (alreadyOpen) {
+                            alreadyOpen.classList.toggle('hidden');
+                          }
+                        }}
+                      >
+                        <FileText size={12} className="mr-1" />
+                        Text
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="px-2 py-1 text-xs"
+                        onClick={() => downloadLogAsPDF(log)}
+                      >
+                        <File size={12} className="mr-1" />
+                        PDF
+                      </Button>
+                    </div>
+                  </div>
+                  <pre
+                    id={`log-text-${log.id}`}
+                    className="mt-2 max-h-40 overflow-y-auto text-[11px] leading-snug text-slate-700 dark:text-[#E2E8F0] bg-white dark:bg-[#0b1120] border border-slate-100 dark:border-[#27335D] rounded-md p-2 whitespace-pre-wrap hidden"
+                  >
+                    {log.content}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       )}
 
       {/* Delete Confirmation Modal */}
