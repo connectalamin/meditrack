@@ -74,11 +74,26 @@ export const deleteMedication = async (req, res, next) => {
   try {
     const { id } = req.params;
 
+    // First check if the medication exists
+    const medication = await prisma.medication.findUnique({
+      where: { id }
+    });
+
+    if (!medication) {
+      // Medication doesn't exist - return success (idempotent delete)
+      return res.json({ message: 'Medication deleted successfully' });
+    }
+
+    // Check if the medication belongs to the user
+    if (medication.userId !== req.user.id) {
+      return res.status(403).json({ 
+        message: 'You do not have permission to delete this medication' 
+      });
+    }
+
+    // Delete the medication
     await prisma.medication.delete({
-      where: {
-        id,
-        userId: req.user.id
-      }
+      where: { id }
     });
 
     res.json({ message: 'Medication deleted successfully' });

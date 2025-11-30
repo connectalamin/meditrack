@@ -317,11 +317,16 @@ export const useDeleteMedication = () => {
       return { previousMedications };
     },
     onError: (err, id, context) => {
-      if (context?.previousMedications) {
+      // Only restore if we have previous data and it's an array
+      if (context?.previousMedications && Array.isArray(context.previousMedications)) {
         queryClient.setQueryData(['medications'], context.previousMedications);
+      } else {
+        // If no previous data, just invalidate to refetch
+        queryClient.invalidateQueries({ queryKey: ['medications'] });
       }
     },
     onSettled: () => {
+      // Always refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['medications'] });
     },
   });

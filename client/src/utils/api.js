@@ -373,8 +373,21 @@ export const ocrAPI = {
 // Health Data API
 export const healthDataAPI = {
   getByMember: async (familyMemberId) => {
-    const response = await apiRequest(`/health-data/${familyMemberId}`);
-    return response.healthData || [];
+    try {
+      const response = await apiRequest(`/health-data/${familyMemberId}`);
+      return response.healthData || [];
+    } catch (error) {
+      // Handle 404 gracefully - family member might not exist or not accessible
+      // Check for common 404 error messages
+      const errorMsg = error.message?.toLowerCase() || '';
+      if (errorMsg.includes('not found') || 
+          errorMsg.includes('404') || 
+          errorMsg.includes('record not found') ||
+          errorMsg.includes('family member not found')) {
+        return [];
+      }
+      throw error;
+    }
   },
 
   create: async (familyMemberId, data) => {
@@ -401,8 +414,21 @@ export const healthDataAPI = {
 // Plans API
 export const plansAPI = {
   getByMember: async (familyMemberId) => {
-    const response = await apiRequest(`/plans/${familyMemberId}`);
-    return response.plans || [];
+    try {
+      const response = await apiRequest(`/plans/${familyMemberId}`);
+      return response.plans || [];
+    } catch (error) {
+      // Handle 404 gracefully - family member might not exist or not accessible
+      // Check for common 404 error messages
+      const errorMsg = error.message?.toLowerCase() || '';
+      if (errorMsg.includes('not found') || 
+          errorMsg.includes('404') || 
+          errorMsg.includes('record not found') ||
+          errorMsg.includes('family member not found')) {
+        return [];
+      }
+      throw error;
+    }
   },
 
   create: async (familyMemberId, plan) => {
