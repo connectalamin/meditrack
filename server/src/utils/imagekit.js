@@ -54,7 +54,7 @@ export const deleteFromImageKit = async (fileId) => {
 /**
  * Extract file ID from ImageKit URL or filePath
  * @param {string} url - ImageKit URL or filePath
- * @returns {string|null} - File ID or null
+ * @returns {Promise<string|null>} - File ID or null
  */
 export const getFileIdFromUrl = async (url) => {
   if (!url || !url.includes('imagekit.io')) {
@@ -64,9 +64,14 @@ export const getFileIdFromUrl = async (url) => {
   try {
     // Extract file path from URL
     const urlObj = new URL(url);
-    const filePath = urlObj.pathname;
+    let filePath = urlObj.pathname;
     
-    // List files in ImageKit to find the fileId
+    // Remove leading slash if present
+    if (filePath.startsWith('/')) {
+      filePath = filePath.substring(1);
+    }
+    
+    // List files in ImageKit to find the fileId by path
     const files = await imagekit.listFiles({
       path: filePath,
       limit: 1,
@@ -74,6 +79,21 @@ export const getFileIdFromUrl = async (url) => {
     
     if (files && files.length > 0) {
       return files[0].fileId;
+    }
+    
+    // If not found by exact path, try searching by file name
+    const fileName = filePath.split('/').pop();
+    if (fileName) {
+      const searchFiles = await imagekit.listFiles({
+        name: fileName,
+        limit: 10,
+      });
+      
+      // Find exact match by URL
+      const exactMatch = searchFiles?.find(file => file.url === url || file.filePath === filePath);
+      if (exactMatch) {
+        return exactMatch.fileId;
+      }
     }
   } catch (error) {
     console.error('Error extracting fileId from URL:', error);

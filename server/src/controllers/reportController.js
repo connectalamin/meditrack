@@ -1,5 +1,5 @@
 import prisma from '../config/database.js';
-import { deleteFromImageKit } from '../utils/imagekit.js';
+import { deleteFromImageKit, getFileIdFromUrl } from '../utils/imagekit.js';
 
 export const getReports = async (req, res, next) => {
   try {
@@ -90,13 +90,16 @@ export const updateReport = async (req, res, next) => {
       
       // Delete old file from ImageKit if it exists and is an ImageKit URL
       if (existingReport?.fileUrl && existingReport.fileUrl.includes('imagekit.io')) {
-        // Extract fileId from ImageKit URL or filePath
-        // ImageKit fileId can be extracted from the URL path
-        // For now, we'll need to store fileId separately or extract from path
-        // Since we don't have fileId stored, we'll skip deletion for now
-        // In production, you might want to add a fileId field to the Report model
-        console.log('Old file URL (ImageKit):', existingReport.fileUrl);
-        // Note: To properly delete, we'd need to store fileId in database
+        try {
+          const oldFileId = await getFileIdFromUrl(existingReport.fileUrl);
+          if (oldFileId) {
+            await deleteFromImageKit(oldFileId);
+            console.log('Old file deleted from ImageKit:', existingReport.fileUrl);
+          }
+        } catch (error) {
+          // Log error but don't fail the update - old file might already be deleted
+          console.error('Error deleting old file from ImageKit:', error.message);
+        }
       }
       
       updateData.fileUrl = req.file.url; // ImageKit URL
@@ -129,20 +132,34 @@ export const deleteReport = async (req, res, next) => {
       where: { id, userId: req.user.id }
     });
 
+    if (!report) {
+      return res.status(404).json({ message: 'Report not found' });
+    }
+
+    // Delete associated file from ImageKit if it exists
+    if (report.fileUrl && report.fileUrl.includes('imagekit.io')) {
+      try {
+        // Extract fileId from ImageKit URL
+        const fileId = await getFileIdFromUrl(report.fileUrl);
+        if (fileId) {
+          await deleteFromImageKit(fileId);
+          console.log('File deleted from ImageKit:', report.fileUrl);
+        } else {
+          console.warn('Could not extract fileId from ImageKit URL:', report.fileUrl);
+        }
+      } catch (error) {
+        // Log error but don't fail the deletion - file might already be deleted
+        console.error('Error deleting file from ImageKit:', error.message);
+      }
+    }
+
+    // Delete report from database
     await prisma.report.delete({
       where: {
         id,
         userId: req.user.id
       }
     });
-
-    // Delete associated file from ImageKit if it exists
-    if (report?.fileUrl && report.fileUrl.includes('imagekit.io')) {
-      // Note: To properly delete from ImageKit, we need the fileId
-      // For now, we'll log it. In production, consider storing fileId in database
-      console.log('File on ImageKit (not deleted - need fileId):', report.fileUrl);
-      // You can manually delete from ImageKit dashboard or add fileId field to schema
-    }
 
     res.json({ message: 'Report deleted successfully' });
   } catch (error) {
