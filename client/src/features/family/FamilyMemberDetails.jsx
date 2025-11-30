@@ -125,10 +125,10 @@ const FamilyMemberDetails = ({ member, onBack }) => {
         setEditingDataId(null);
       } else {
         // Create new record
-        await createHealthData.mutateAsync({
-          familyMemberId: member.id,
-          data: newData
-        });
+      await createHealthData.mutateAsync({
+        familyMemberId: member.id,
+        data: newData
+      });
       }
       setShowAddData(false);
       const defaultUnit = getDefaultUnit(newData.type) || '';
@@ -432,7 +432,7 @@ const FamilyMemberDetails = ({ member, onBack }) => {
                     } else {
                       // Free-form input for custom metrics
                       return (
-                        <input
+                  <input 
                           type="text"
                           className="w-full bg-white dark:bg-[#1B2430] border-2 border-slate-500 dark:border-slate-500 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 dark:focus:ring-[#34D399] transition-all placeholder-slate-400 dark:placeholder-[#64748b] shadow-sm"
                           placeholder="e.g. mmHg"
@@ -479,9 +479,9 @@ const FamilyMemberDetails = ({ member, onBack }) => {
                 <Card key={type} className="min-h-[300px] relative group">
                   <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-lg flex items-center gap-2">
-                        <Activity className="text-emerald-500" size={20} /> {type}
-                      </h3>
+                    <h3 className="font-semibold text-lg flex items-center gap-2">
+                      <Activity className="text-emerald-500" size={20} /> {type}
+                    </h3>
                       {normalRanges && (
                         <button
                           onClick={() => setShowRangesModal({ type, unit: currentDisplayUnit })}
@@ -548,16 +548,16 @@ const FamilyMemberDetails = ({ member, onBack }) => {
                           displayValue = convertValue(d.value, type, d.unit, displayUnit);
                         }
                         return (
-                          <div key={d.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-[#111725] rounded-lg group/item hover:bg-slate-100 dark:hover:bg-[#27335D]">
-                            <div className="flex items-center gap-3">
+                        <div key={d.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-[#111725] rounded-lg group/item hover:bg-slate-100 dark:hover:bg-[#27335D]">
+                          <div className="flex items-center gap-3">
                               <span className="text-sm font-medium text-slate-900 dark:text-[#F8FAFC]">
                                 {displayValue} {displayUnit || d.unit}
                                 {hasConversion && d.unit !== displayUnit && (
                                   <span className="text-xs text-slate-400 ml-1">({d.value} {d.unit})</span>
                                 )}
                               </span>
-                              <span className="text-xs text-slate-500 dark:text-[#94a3b8]">{new Date(d.date).toLocaleDateString()}</span>
-                            </div>
+                            <span className="text-xs text-slate-500 dark:text-[#94a3b8]">{new Date(d.date).toLocaleDateString()}</span>
+                          </div>
                             <div className="flex items-center gap-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
                               <button
                                 onClick={() => handleEditHealthDataClick(d)}
@@ -566,14 +566,14 @@ const FamilyMemberDetails = ({ member, onBack }) => {
                               >
                                 <Edit size={14} />
                               </button>
-                              <button
-                                onClick={() => handleDeleteHealthDataClick(d.id, d.type, d.date)}
+                          <button
+                            onClick={() => handleDeleteHealthDataClick(d.id, d.type, d.date)}
                                 className="text-slate-400 hover:text-red-500 transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                           </div>
                         );
                       })}

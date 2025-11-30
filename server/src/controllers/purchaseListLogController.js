@@ -38,7 +38,7 @@ export const getPurchaseListLogs = async (req, res, next) => {
 // Create a new purchase list log entry
 export const createPurchaseListLog = async (req, res, next) => {
   try {
-    const { title, content, totalItems, totalQuantity, totalCost } = req.body;
+    const { title, content, totalItems, totalQuantity, totalCost, discount } = req.body;
 
     // Debug: check available Prisma models
     if (!prisma.purchaseListLog) {
@@ -53,7 +53,8 @@ export const createPurchaseListLog = async (req, res, next) => {
         content,
         totalItems,
         totalQuantity,
-        totalCost
+        totalCost,
+        discount: discount || null
       }
     });
 

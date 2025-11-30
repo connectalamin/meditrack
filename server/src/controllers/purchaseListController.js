@@ -42,8 +42,10 @@ export const getPurchaseListItems = async (req, res, next) => {
 
 export const createPurchaseListItem = async (req, res, next) => {
   try {
-    const { medicationId, medicationName, quantity, price } = req.body;
-    const totalCost = quantity * price;
+    const { medicationId, medicationName, quantity, price, discount } = req.body;
+    const subtotal = quantity * price;
+    const discountAmount = discount ? subtotal * (discount / 100) : 0;
+    const totalCost = subtotal - discountAmount;
 
     const purchaseListItem = await prisma.purchaseListItem.create({
       data: {
@@ -52,6 +54,7 @@ export const createPurchaseListItem = async (req, res, next) => {
         medicationName,
         quantity,
         price,
+        discount: discount || null,
         totalCost
       },
       include: {
@@ -68,9 +71,9 @@ export const createPurchaseListItem = async (req, res, next) => {
 export const updatePurchaseListItem = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { quantity, price, medicationName } = req.body;
+    const { quantity, price, medicationName, discount } = req.body;
 
-    // Calculate totalCost if quantity or price is updated
+    // Calculate totalCost if quantity, price, or discount is updated
     const existingItem = await prisma.purchaseListItem.findFirst({
       where: {
         id,
@@ -84,7 +87,10 @@ export const updatePurchaseListItem = async (req, res, next) => {
 
     const finalQuantity = quantity !== undefined ? quantity : existingItem.quantity;
     const finalPrice = price !== undefined ? price : existingItem.price;
-    const totalCost = finalQuantity * finalPrice;
+    const finalDiscount = discount !== undefined ? discount : existingItem.discount;
+    const subtotal = finalQuantity * finalPrice;
+    const discountAmount = finalDiscount ? subtotal * (finalDiscount / 100) : 0;
+    const totalCost = subtotal - discountAmount;
 
     const purchaseListItem = await prisma.purchaseListItem.update({
       where: {
@@ -94,6 +100,7 @@ export const updatePurchaseListItem = async (req, res, next) => {
         ...(quantity !== undefined && { quantity }),
         ...(price !== undefined && { price }),
         ...(medicationName !== undefined && { medicationName }),
+        ...(discount !== undefined && { discount: finalDiscount }),
         totalCost
       },
       include: {

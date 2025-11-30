@@ -27,7 +27,9 @@ const PurchaseList = ({ onBack }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
-  const [formData, setFormData] = useState({ medicationId: '', medicationName: '', quantity: '', price: '' });
+  const [formData, setFormData] = useState({ medicationId: '', medicationName: '', quantity: '', price: '', discount: '' });
+  const [globalDiscount, setGlobalDiscount] = useState('');
+  const [monthlyMedicineDiscounts, setMonthlyMedicineDiscounts] = useState({});
   const [savingLog, setSavingLog] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   
@@ -48,7 +50,7 @@ const PurchaseList = ({ onBack }) => {
 
   // Reset form
   const resetForm = () => {
-    setFormData({ medicationId: '', medicationName: '', quantity: '', price: '' });
+    setFormData({ medicationId: '', medicationName: '', quantity: '', price: '', discount: '' });
     setEditingItem(null);
     setShowAddForm(false);
   };
@@ -61,7 +63,8 @@ const PurchaseList = ({ onBack }) => {
         medicationId: medication.id,
         medicationName: medication.name,
         quantity: '1',
-        price: medication.price?.toString() || '0'
+        price: medication.price?.toString() || '0',
+        discount: ''
       });
     }
   };
@@ -76,7 +79,8 @@ const PurchaseList = ({ onBack }) => {
         medicationId: formData.medicationId || null,
         medicationName: formData.medicationName,
         quantity: parseInt(formData.quantity),
-        price: parseFloat(formData.price)
+        price: parseFloat(formData.price),
+        ...(formData.discount && { discount: parseFloat(formData.discount) })
       };
 
       if (editingItem) {
@@ -95,11 +99,14 @@ const PurchaseList = ({ onBack }) => {
 
   // Handle edit click
   const handleEdit = (item) => {
+    // Get the original item from purchaseListItems to access discount
+    const originalItem = purchaseListItems.find(i => i.id === item.id);
     setFormData({
       medicationId: item.medicationId || '',
       medicationName: item.medicationName,
       quantity: item.quantity.toString(),
-      price: item.price.toString()
+      price: item.price.toString(),
+      discount: (originalItem?.discount || item.discount) ? (originalItem?.discount || item.discount).toString() : ''
     });
     setEditingItem(item);
     setShowAddForm(true);
@@ -143,14 +150,23 @@ const PurchaseList = ({ onBack }) => {
       memberPlans.forEach(plan => {
         const medDetails = getMedicationDetails(plan.medicationId);
         const { monthly, packs, cost } = calculateCost(plan);
+        const itemId = `monthly-${plan.id}`;
+        const discount = monthlyMedicineDiscounts[itemId] || 0;
+        const subtotal = cost;
+        const discountAmount = discount ? subtotal * (discount / 100) : 0;
+        const finalCost = subtotal - discountAmount;
+        
         monthlyItems.push({
-          id: `monthly-${plan.id}`,
+          id: itemId,
           type: 'monthly',
           medicationName: plan.medicationName,
           strength: medDetails?.strength || '',
           monthly,
           packs,
-          cost,
+          cost: finalCost,
+          subtotal,
+          discount,
+          discountAmount,
           dosage: plan.dosage,
           frequency: plan.frequency,
           memberName: member.name,
@@ -166,16 +182,27 @@ const PurchaseList = ({ onBack }) => {
 
   // Get medicines (from purchase list items)
   const getNormalMedicines = () => {
-    return purchaseListItems.map(item => ({
-      id: item.id,
-      type: 'normal',
-      medicationName: item.medicationName,
-      strength: item.medication?.strength || '',
-      quantity: item.quantity,
-      price: item.price,
-      cost: item.totalCost,
-      medicationId: item.medicationId
-    }));
+    return purchaseListItems.map(item => {
+      const subtotal = item.quantity * item.price;
+      const discount = item.discount || 0;
+      const discountAmount = discount ? subtotal * (discount / 100) : 0;
+      // Use totalCost from database (already includes discount) as final cost
+      const finalCost = item.totalCost;
+      
+      return {
+        id: item.id,
+        type: 'normal',
+        medicationName: item.medicationName,
+        strength: item.medication?.strength || '',
+        quantity: item.quantity,
+        price: item.price,
+        cost: finalCost,
+        subtotal,
+        discount,
+        discountAmount,
+        medicationId: item.medicationId
+      };
+    });
   };
 
   // Combine all medicines
@@ -186,7 +213,10 @@ const PurchaseList = ({ onBack }) => {
   };
 
   const allMedicines = getAllMedicines();
-  const totalCost = allMedicines.reduce((sum, item) => sum + (item.cost || 0), 0);
+  const subtotal = allMedicines.reduce((sum, item) => sum + (item.cost || 0), 0);
+  const globalDiscountValue = parseFloat(globalDiscount) || 0;
+  const globalDiscountAmount = globalDiscountValue ? subtotal * (globalDiscountValue / 100) : 0;
+  const totalCost = subtotal - globalDiscountAmount;
   const totalPacks = allMedicines.reduce((sum, item) => {
     if (item.type === 'monthly') return sum + item.packs;
     return sum + item.quantity;
@@ -206,7 +236,11 @@ const PurchaseList = ({ onBack }) => {
     text += `SUMMARY\n`;
     text += `Total Medicines: ${allMedicines.length}\n`;
     text += `Total Items: ${totalPacks}\n`;
-    text += `Estimated Cost: ${totalCost.toLocaleString()} BDT\n`;
+    text += `Subtotal: ${subtotal.toLocaleString()} BDT\n`;
+    if (globalDiscountValue > 0) {
+      text += `Global Discount: ${globalDiscountValue.toFixed(1)}% (${globalDiscountAmount.toLocaleString()} BDT)\n`;
+    }
+    text += `Final Cost: ${totalCost.toLocaleString()} BDT\n`;
     text += `\n${'='.repeat(50)}\n\n`;
 
     // Medicines
@@ -217,7 +251,14 @@ const PurchaseList = ({ onBack }) => {
         text += `${idx + 1}. ${item.medicationName}`;
         if (item.strength) text += ` (${item.strength})`;
         text += `\n`;
-        text += `   Quantity: ${item.quantity} | Price: ${item.price.toLocaleString()} BDT | Total: ${item.cost.toLocaleString()} BDT\n\n`;
+        text += `   Quantity: ${item.quantity} | Price: ${item.price.toLocaleString()} BDT`;
+        if (item.discount > 0) {
+          text += ` | Discount: ${item.discount.toFixed(1)}%`;
+          text += `\n   Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`;
+        } else {
+          text += ` | Total: ${item.cost.toLocaleString()} BDT`;
+        }
+        text += `\n\n`;
       });
       text += `\n`;
     }
@@ -232,7 +273,14 @@ const PurchaseList = ({ onBack }) => {
           if (item.strength) text += ` (${item.strength})`;
           text += ` - ${item.memberName}\n`;
           text += `   Schedule: ${item.dosage} tablet(s) × ${item.frequency}/day\n`;
-          text += `   Monthly Qty: ${item.monthly} | Packs: ${item.packs} | Cost: ${item.cost.toLocaleString()} BDT\n\n`;
+          text += `   Monthly Qty: ${item.monthly} | Packs: ${item.packs}`;
+          if (item.discount > 0) {
+            text += ` | Discount: ${item.discount.toFixed(1)}%`;
+            text += `\n   Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`;
+          } else {
+            text += ` | Cost: ${item.cost.toLocaleString()} BDT`;
+          }
+          text += `\n\n`;
         });
       }
     }
@@ -255,6 +303,7 @@ const PurchaseList = ({ onBack }) => {
         totalItems: allMedicines.length,
         totalQuantity: totalPacks,
         totalCost,
+        ...(globalDiscountValue > 0 && { discount: globalDiscountValue })
       });
       // After save, go to logs page
       setShowLogs(true);
@@ -352,7 +401,13 @@ const PurchaseList = ({ onBack }) => {
       yPos += 6;
       doc.text(`Total Items: ${totalPacks}`, 14, yPos);
       yPos += 6;
-      doc.text(`Estimated Cost: ${totalCost.toLocaleString()} BDT`, 14, yPos);
+      doc.text(`Subtotal: ${subtotal.toLocaleString()} BDT`, 14, yPos);
+      yPos += 6;
+      if (globalDiscountValue > 0) {
+        doc.text(`Global Discount: ${globalDiscountValue.toFixed(1)}% (${globalDiscountAmount.toLocaleString()} BDT)`, 14, yPos);
+        yPos += 6;
+      }
+      doc.text(`Final Cost: ${totalCost.toLocaleString()} BDT`, 14, yPos);
       yPos += 10;
       
       // Medicines
@@ -372,7 +427,13 @@ const PurchaseList = ({ onBack }) => {
           doc.text(medName, 16, yPos);
           yPos += 6;
           doc.setFontSize(9);
-          doc.text(`Quantity: ${item.quantity} | Price: ${item.price.toLocaleString()} BDT | Total: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+          if (item.discount > 0) {
+            doc.text(`Quantity: ${item.quantity} | Price: ${item.price.toLocaleString()} BDT | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
+            yPos += 5;
+            doc.text(`Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+          } else {
+            doc.text(`Quantity: ${item.quantity} | Price: ${item.price.toLocaleString()} BDT | Total: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+          }
           yPos += 8;
         });
         yPos += 5;
@@ -398,7 +459,13 @@ const PurchaseList = ({ onBack }) => {
             doc.setFontSize(9);
             doc.text(`Schedule: ${item.dosage} tablet(s) × ${item.frequency}/day`, 20, yPos);
             yPos += 5;
-            doc.text(`Monthly Qty: ${item.monthly} | Packs: ${item.packs} | Cost: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+            if (item.discount > 0) {
+              doc.text(`Monthly Qty: ${item.monthly} | Packs: ${item.packs} | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
+              yPos += 5;
+              doc.text(`Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+            } else {
+              doc.text(`Monthly Qty: ${item.monthly} | Packs: ${item.packs} | Cost: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+            }
             yPos += 8;
           });
         }
@@ -631,32 +698,71 @@ const PurchaseList = ({ onBack }) => {
 
           {/* Summary Card */}
           <Card className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 border-l-4 border-l-amber-500">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg">
-                  <ShoppingBag className="text-amber-600 dark:text-amber-400" size={24} />
+            <div className="space-y-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg">
+                    <ShoppingBag className="text-amber-600 dark:text-amber-400" size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Total Items</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{allMedicines.length} Medicines</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Total Items</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{allMedicines.length} Medicines</p>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg">
+                    <ShoppingBag className="text-amber-600 dark:text-amber-400" size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Total Quantity</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{totalPacks} {totalPacks === 1 ? 'Item' : 'Items'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg">
+                    <ShoppingBag className="text-emerald-600 dark:text-emerald-400" size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Subtotal</p>
+                    <p className={`text-2xl font-bold ${globalDiscountValue > 0 ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-[#F8FAFC]'}`}>
+                      {subtotal.toLocaleString()} BDT
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg">
-                  <ShoppingBag className="text-amber-600 dark:text-amber-400" size={24} />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Total Quantity</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{totalPacks} {totalPacks === 1 ? 'Item' : 'Items'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg">
-                  <ShoppingBag className="text-emerald-600 dark:text-emerald-400" size={24} />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Estimated Cost</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{totalCost.toLocaleString()} BDT</p>
+              <div className="border-t border-amber-200 dark:border-amber-500/20 pt-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                  <div className="flex-1 md:flex-none">
+                    <Input
+                      label="Global Discount (%)"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={globalDiscount}
+                      onChange={(e) => setGlobalDiscount(e.target.value)}
+                      className="mb-0 w-full md:w-40"
+                      placeholder="0"
+                    />
+                  </div>
+                  {globalDiscountValue > 0 && (
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Discount Amount</p>
+                        <p className="text-xl font-semibold text-red-600 dark:text-red-400">
+                          -{globalDiscountAmount.toLocaleString()} BDT
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Final Cost</p>
+                      <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                        {totalCost.toLocaleString()} BDT
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -716,6 +822,33 @@ const PurchaseList = ({ onBack }) => {
                 required
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Discount (%)"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={formData.discount}
+                onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
+              />
+              <div>
+                <label className="block text-sm font-medium text-slate-500 dark:text-[#94a3b8] mb-1.5">
+                  Final Price (BDT)
+                </label>
+                <div className="w-full bg-slate-50 dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded-lg px-4 py-2.5 text-slate-900 dark:text-[#F8FAFC]">
+                  {(() => {
+                    const quantity = parseFloat(formData.quantity) || 0;
+                    const price = parseFloat(formData.price) || 0;
+                    const discount = parseFloat(formData.discount) || 0;
+                    const subtotal = quantity * price;
+                    const discountAmount = discount ? subtotal * (discount / 100) : 0;
+                    const finalPrice = subtotal - discountAmount;
+                    return finalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  })()}
+                </div>
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button type="submit" className="flex-1">
                 {editingItem ? 'Update' : 'Add'} Medicine
@@ -763,6 +896,7 @@ const PurchaseList = ({ onBack }) => {
                       <th className="px-4 py-3 text-left rounded-l-lg">Medicine</th>
                       <th className="px-4 py-3 text-center">Quantity</th>
                       <th className="px-4 py-3 text-center">Price</th>
+                      <th className="px-4 py-3 text-center">Discount</th>
                       <th className="px-4 py-3 text-right">Total Cost</th>
                       <th className="px-4 py-3 text-right rounded-r-lg">Actions</th>
                     </tr>
@@ -786,8 +920,30 @@ const PurchaseList = ({ onBack }) => {
                         <td className="px-4 py-3 text-center text-slate-900 dark:text-[#F8FAFC]">
                           {item.price.toLocaleString()} BDT
                         </td>
-                        <td className="px-4 py-3 text-right font-bold text-slate-900 dark:text-[#F8FAFC]">
-                          {item.cost.toLocaleString()} BDT
+                        <td className="px-4 py-3 text-center text-slate-900 dark:text-[#F8FAFC]">
+                          {item.discount > 0 ? (
+                            <span className="text-red-600 dark:text-red-400 font-medium">
+                              {item.discount.toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 dark:text-slate-500">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {item.discount > 0 ? (
+                            <div>
+                              <p className="text-xs text-slate-400 dark:text-slate-500 line-through">
+                                {item.subtotal.toLocaleString()} BDT
+                              </p>
+                              <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {item.cost.toLocaleString()} BDT
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="font-bold text-slate-900 dark:text-[#F8FAFC]">
+                              {item.cost.toLocaleString()} BDT
+                            </p>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-2">
@@ -830,6 +986,7 @@ const PurchaseList = ({ onBack }) => {
                       <th className="px-4 py-3 text-left">Schedule</th>
                       <th className="px-4 py-3 text-center">Monthly Qty</th>
                       <th className="px-4 py-3 text-center">Packs</th>
+                      <th className="px-4 py-3 text-center">Discount (%)</th>
                       <th className="px-4 py-3 text-right rounded-r-lg">Cost</th>
                     </tr>
                   </thead>
@@ -858,8 +1015,39 @@ const PurchaseList = ({ onBack }) => {
                         <td className="px-4 py-3 text-center">
                           <Badge variant="warning">{item.packs} packs</Badge>
                         </td>
-                        <td className="px-4 py-3 text-right font-bold text-slate-900 dark:text-[#F8FAFC]">
-                          {item.cost.toLocaleString()} BDT
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={item.discount || ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setMonthlyMedicineDiscounts(prev => ({
+                                ...prev,
+                                [item.id]: value ? parseFloat(value) : 0
+                              }));
+                            }}
+                            className="w-20 px-2 py-1 text-sm bg-white dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {item.discount > 0 ? (
+                            <div>
+                              <p className="text-xs text-slate-400 dark:text-slate-500 line-through">
+                                {item.subtotal.toLocaleString()} BDT
+                              </p>
+                              <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {item.cost.toLocaleString()} BDT
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="font-bold text-slate-900 dark:text-[#F8FAFC]">
+                              {item.cost.toLocaleString()} BDT
+                            </p>
+                          )}
                         </td>
                       </tr>
                     ))}

@@ -87,6 +87,7 @@ export const purchaseListItemSchema = z.object({
   medicationName: z.string().min(1, 'Medication name is required'),
   quantity: z.number().min(1, 'Quantity must be at least 1'),
   price: z.number().min(0, 'Price must be 0 or greater'),
+  discount: z.number().min(0).max(100).optional(),
 });
 
 export const updatePurchaseListItemSchema = purchaseListItemSchema.partial();
@@ -98,6 +99,7 @@ export const purchaseListLogSchema = z.object({
   totalItems: z.number().min(0),
   totalQuantity: z.number().min(0),
   totalCost: z.number().min(0),
+  discount: z.number().min(0).max(100).optional(),
 });
 
 
