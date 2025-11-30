@@ -4,6 +4,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import AuthLayout from './components/layout/AuthLayout';
 import OfflineSyncManager from './components/layout/OfflineSyncManager';
 import InstallAndStatusBanner from './components/layout/InstallAndStatusBanner';
+import OAuthCallback from './auth/OAuthCallback';
 
 const MediTrackApp = () => {
   const { user, logout, loading } = useAuth();
@@ -13,6 +14,9 @@ const MediTrackApp = () => {
     const savedTheme = localStorage.getItem('meditrack_theme');
     return savedTheme || 'light';
   });
+
+  // Check if we're on the OAuth callback route (has tokens in hash)
+  const isOAuthCallback = window.location.hash && window.location.hash.includes('accessToken');
 
   useEffect(() => {
     // Apply theme class to document
@@ -51,6 +55,11 @@ const MediTrackApp = () => {
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
       </div>
     );
+  }
+
+  // Show OAuth callback handler if on callback route
+  if (isOAuthCallback) {
+    return <OAuthCallback />;
   }
 
   return (

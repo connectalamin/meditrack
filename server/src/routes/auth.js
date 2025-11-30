@@ -8,7 +8,9 @@ const router = express.Router();
 
 router.post('/register', validate(registerSchema), authController.register);
 router.post('/login', validate(loginSchema), authController.login);
-router.post('/google', authController.googleLogin);
+router.post('/google', authController.googleLogin); // Keep for backward compatibility
+router.get('/google', authController.googleOAuthInit); // OAuth redirect flow - initiate
+router.get('/google/callback', authController.googleOAuthCallback); // OAuth redirect flow - callback
 router.get('/me', authenticate, authController.getMe);
 router.get('/devices', authenticate, authController.getDevices);
 router.post('/logout', authenticate, authController.logout);

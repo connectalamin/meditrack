@@ -1,19 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Chrome } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://meditrack-server-alpha.vercel.app/api';
+
 const AuthForms = ({ view, setView }) => {
-  const { login, register, googleLogin } = useAuth();
+  const { login, register } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const googleButtonRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,72 +33,20 @@ const AuthForms = ({ view, setView }) => {
     }
   };
 
+  // Check for OAuth error in URL params
   useEffect(() => {
-    // Load Google Identity Services script
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    
-    if (!googleClientId) {
-      return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorParam = urlParams.get('error');
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam));
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
-
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: handleGoogleCallback,
-        });
-
-        // Render the button
-        if (googleButtonRef.current) {
-          window.google.accounts.id.renderButton(googleButtonRef.current, {
-            theme: 'outline',
-            size: 'large',
-            text: 'signin_with',
-            type: 'standard',
-          });
-        }
-      }
-    };
-    document.head.appendChild(script);
-
-    return () => {
-      const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-      if (existingScript) {
-        existingScript.remove();
-      }
-    };
   }, []);
 
-  const handleGoogleCallback = async (response) => {
-    try {
-      setError('');
-      setGoogleLoading(true);
-      await googleLogin(response.credential);
-    } catch (err) {
-      setError(err.message || 'Google login failed');
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
   const handleGoogleLogin = () => {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    
-    if (!googleClientId) {
-      setError('Google OAuth is not configured. Please set VITE_GOOGLE_CLIENT_ID in your .env file.');
-      return;
-    }
-
-    // Trigger the Google Sign-In flow
-    if (window.google && window.google.accounts && window.google.accounts.id) {
-      window.google.accounts.id.prompt();
-    } else {
-      setError('Google Sign-In is not available. Please refresh the page.');
-    }
+    // Redirect to backend OAuth endpoint
+    window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
   return (
@@ -167,21 +115,13 @@ const AuthForms = ({ view, setView }) => {
           </div>
 
           <div className="w-full">
-            {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
-              <div ref={googleButtonRef} className="w-full [&>div]:w-full [&>div>div]:w-full"></div>
-            ) : (
-              <Button 
-                variant="secondary" 
-                onClick={() => setError('Google OAuth is not configured. Please set VITE_GOOGLE_CLIENT_ID in your .env file.')} 
-                className="w-full h-11 flex items-center justify-center gap-2"
-                disabled
-              >
-                <Chrome size={18} /> Google (Not Configured)
-              </Button>
-            )}
-            {googleLoading && (
-              <p className="text-sm text-slate-500 dark:text-[#94a3b8] mt-2 text-center">Signing in with Google...</p>
-            )}
+            <Button 
+              variant="secondary" 
+              onClick={handleGoogleLogin}
+              className="w-full h-11 flex items-center justify-center gap-2"
+            >
+              <Chrome size={18} /> Continue with Google
+            </Button>
           </div>
 
           <div className="mt-6 text-center text-sm text-slate-600 dark:text-[#94a3b8]">

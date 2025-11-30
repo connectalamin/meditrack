@@ -82,6 +82,7 @@ export const AuthProvider = ({ children }) => {
     register,
     googleLogin,
     logout,
+    setUser, // Export setUser for OAuth callback
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

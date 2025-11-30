@@ -428,6 +428,59 @@ export const refreshToken = async (req, res, next) => {
   }
 };
 
+// Helper function to find or create user from Google OAuth data
+const findOrCreateGoogleUser = async (email, name, googleId) => {
+  let user = await prisma.user.findUnique({
+    where: { email }
+  });
+
+  let isNewUser = false;
+  if (!user) {
+    // Create new user with Google OAuth
+    user = await prisma.user.create({
+      data: {
+        email,
+        displayName: name || email.split('@')[0],
+        password: null, // No password for OAuth users
+        googleId: googleId
+      }
+    });
+    isNewUser = true;
+  } else {
+    // Update existing user with Google ID if not set
+    if (!user.googleId) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { googleId: googleId }
+      });
+    }
+  }
+
+  return { user, isNewUser };
+};
+
+// Helper function to create self family member card for new users
+const createSelfFamilyMember = async (user, email) => {
+  const existingSelfCard = await prisma.familyMember.findFirst({
+    where: {
+      userId: user.id,
+      relation: 'Self'
+    }
+  });
+
+  if (!existingSelfCard) {
+    await prisma.familyMember.create({
+      data: {
+        userId: user.id,
+        name: user.displayName || email.split('@')[0],
+        relation: 'Self',
+        age: null,
+        lastDoctorVisit: null
+      }
+    });
+  }
+};
+
 export const googleLogin = async (req, res, next) => {
   try {
     const { idToken } = req.body;
@@ -462,31 +515,7 @@ export const googleLogin = async (req, res, next) => {
     }
 
     // Find or create user
-    let user = await prisma.user.findUnique({
-      where: { email }
-    });
-
-    let isNewUser = false;
-    if (!user) {
-      // Create new user with Google OAuth
-      user = await prisma.user.create({
-        data: {
-          email,
-          displayName: name || email.split('@')[0],
-          password: null, // No password for OAuth users
-          googleId: googleId
-        }
-      });
-      isNewUser = true;
-    } else {
-      // Update existing user with Google ID if not set
-      if (!user.googleId) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { googleId: googleId }
-        });
-      }
-    }
+    const { user, isNewUser } = await findOrCreateGoogleUser(email, name, googleId);
 
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user.id);
@@ -505,25 +534,7 @@ export const googleLogin = async (req, res, next) => {
 
     // Auto-create self family member card for new users
     if (isNewUser) {
-      // Check if self card already exists (shouldn't for new users, but just in case)
-      const existingSelfCard = await prisma.familyMember.findFirst({
-        where: {
-          userId: user.id,
-          relation: 'Self'
-        }
-      });
-
-      if (!existingSelfCard) {
-        await prisma.familyMember.create({
-          data: {
-            userId: user.id,
-            name: user.displayName || email.split('@')[0],
-            relation: 'Self',
-            age: null,
-            lastDoctorVisit: null
-          }
-        });
-      }
+      await createSelfFamilyMember(user, email);
     }
 
     res.json({
@@ -540,6 +551,140 @@ export const googleLogin = async (req, res, next) => {
   } catch (error) {
     console.error('Google login error:', error);
     next(error);
+  }
+};
+
+// OAuth redirect flow: Initiate Google OAuth
+export const googleOAuthInit = async (req, res, next) => {
+  try {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.status(500).json({ message: 'Google OAuth is not configured on the server' });
+    }
+
+    // Determine the callback URL based on environment
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+    const protocol = isProduction ? 'https' : 'http';
+    const host = req.get('host') || (isProduction ? 'meditrack-server-alpha.vercel.app' : 'localhost:5000');
+    const callbackURL = `${protocol}://${host}/api/auth/google/callback`;
+
+    // Create OAuth2Client with redirect configuration
+    const oauth2Client = new OAuth2Client(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL
+    );
+
+    // Generate the authorization URL
+    const scopes = [
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile'
+    ];
+
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: scopes,
+      prompt: 'consent' // Force consent screen to get refresh token
+    });
+
+    // Redirect to Google
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error('Google OAuth init error:', error);
+    next(error);
+  }
+};
+
+// OAuth redirect flow: Handle Google OAuth callback
+export const googleOAuthCallback = async (req, res, next) => {
+  try {
+    const { code, error } = req.query;
+
+    if (error) {
+      console.error('Google OAuth error:', error);
+      const clientUrl = process.env.CLIENT_URL || 'https://meditrack-jade.vercel.app';
+      return res.redirect(`${clientUrl}/auth?error=${encodeURIComponent(error)}`);
+    }
+
+    if (!code) {
+      const clientUrl = process.env.CLIENT_URL || 'https://meditrack-jade.vercel.app';
+      return res.redirect(`${clientUrl}/auth?error=${encodeURIComponent('No authorization code provided')}`);
+    }
+
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      const clientUrl = process.env.CLIENT_URL || 'https://meditrack-jade.vercel.app';
+      return res.redirect(`${clientUrl}/auth?error=${encodeURIComponent('OAuth not configured')}`);
+    }
+
+    // Determine the callback URL (must match the one used in googleOAuthInit)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+    const protocol = isProduction ? 'https' : 'http';
+    const host = req.get('host') || (isProduction ? 'meditrack-server-alpha.vercel.app' : 'localhost:5000');
+    const callbackURL = `${protocol}://${host}/api/auth/google/callback`;
+
+    // Create OAuth2Client
+    const oauth2Client = new OAuth2Client(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL
+    );
+
+    // Exchange authorization code for tokens
+    let tokenResponse;
+    try {
+      tokenResponse = await oauth2Client.getToken(code);
+      oauth2Client.setCredentials(tokenResponse.tokens);
+    } catch (error) {
+      console.error('Error exchanging code for tokens:', error);
+      const clientUrl = process.env.CLIENT_URL || 'https://meditrack-jade.vercel.app';
+      return res.redirect(`${clientUrl}/auth?error=${encodeURIComponent('Failed to exchange authorization code')}`);
+    }
+
+    // Get user info from Google
+    const ticket = await oauth2Client.verifyIdToken({
+      idToken: tokenResponse.tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId } = payload;
+
+    if (!email) {
+      const clientUrl = process.env.CLIENT_URL || 'https://meditrack-jade.vercel.app';
+      return res.redirect(`${clientUrl}/auth?error=${encodeURIComponent('Email not provided by Google')}`);
+    }
+
+    // Find or create user
+    const { user, isNewUser } = await findOrCreateGoogleUser(email, name, googleId);
+
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens(user.id);
+
+    // Create device
+    const deviceToken = generateDeviceToken();
+    const deviceName = getDeviceName(req.headers['user-agent']);
+
+    await prisma.device.create({
+      data: {
+        userId: user.id,
+        deviceToken,
+        deviceName
+      }
+    });
+
+    // Auto-create self family member card for new users
+    if (isNewUser) {
+      await createSelfFamilyMember(user, email);
+    }
+
+    // Redirect to frontend with tokens in URL hash (more secure than query params)
+    const clientUrl = process.env.CLIENT_URL || 'https://meditrack-jade.vercel.app';
+    const redirectUrl = `${clientUrl}/auth/callback#accessToken=${accessToken}&refreshToken=${refreshToken}&deviceToken=${deviceToken}`;
+    
+    res.redirect(redirectUrl);
+  } catch (error) {
+    console.error('Google OAuth callback error:', error);
+    const clientUrl = process.env.CLIENT_URL || 'https://meditrack-jade.vercel.app';
+    res.redirect(`${clientUrl}/auth?error=${encodeURIComponent('Authentication failed')}`);
   }
 };
 
