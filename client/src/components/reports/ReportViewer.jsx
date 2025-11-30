@@ -4,7 +4,11 @@ import Button from '../ui/Button';
 const ReportViewer = ({ isOpen, onClose, report }) => {
   if (!isOpen || !report) return null;
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  // Use the same API URL logic as the main api.js
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 
+    (window.location.hostname !== 'localhost' 
+      ? 'https://meditrack-server-nine.vercel.app/api' 
+      : 'http://localhost:5000/api');
   const baseUrl = API_BASE_URL.replace('/api', '');
   const fileUrl = report.fileUrl 
     ? (report.fileUrl.startsWith('http') ? report.fileUrl : `${baseUrl}${report.fileUrl}`)
