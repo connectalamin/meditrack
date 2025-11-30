@@ -6,7 +6,7 @@ const ReportViewer = ({ isOpen, onClose, report }) => {
 
   // Use the same API URL logic as the main api.js
   // Set VITE_API_URL in .env.local for local development
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://meditrack-server-nine.vercel.app/api';
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://meditrack-server-alpha.vercel.app/api';
   const baseUrl = API_BASE_URL.replace('/api', '');
   const fileUrl = report.fileUrl 
     ? (report.fileUrl.startsWith('http') ? report.fileUrl : `${baseUrl}${report.fileUrl}`)

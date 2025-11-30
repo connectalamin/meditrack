@@ -25,18 +25,7 @@ const app = express();
 // This allows express-rate-limit to correctly identify client IPs
 app.set('trust proxy', true);
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use(limiter);
-
-// Middleware - CORS configuration (MUST be before other middleware)
+// Middleware - CORS configuration (MUST be before rate limiting)
 // Allow multiple origins for development and production
 const allowedOrigins = [
   'http://localhost:5173', // Local development
@@ -94,22 +83,23 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Explicit OPTIONS handler for all routes (critical for preflight requests)
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  const normalizedOrigin = normalizeOrigin(origin);
-  const normalizedAllowed = allowedOrigins.map(normalizeOrigin);
-  
-  if (origin && normalizedAllowed.includes(normalizedOrigin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-device-token');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400');
-    return res.status(204).send();
-  }
-  
-  res.status(204).send();
+// This MUST be before rate limiting to ensure OPTIONS requests are handled
+app.options('*', cors(corsOptions), (req, res) => {
+  res.status(204).end();
 });
+
+// Rate limiting - Skip OPTIONS requests (preflight)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // limit each IP to 1000 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS', // Skip rate limiting for OPTIONS requests
+});
+
+app.use(limiter);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
