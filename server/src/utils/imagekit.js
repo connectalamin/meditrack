@@ -44,10 +44,20 @@ export const uploadToImageKit = async (fileBuffer, fileName, folder = 'reports')
  */
 export const deleteFromImageKit = async (fileId) => {
   try {
-    await imagekit.deleteFile(fileId);
+    if (!fileId) {
+      throw new Error('FileId is required for deletion');
+    }
+    const result = await imagekit.deleteFile(fileId);
+    console.log('ImageKit delete result:', result);
   } catch (error) {
     console.error('ImageKit delete error:', error);
-    // Don't throw - file might already be deleted
+    console.error('Error details:', {
+      message: error.message,
+      statusCode: error.statusCode,
+      response: error.response
+    });
+    // Don't throw - file might already be deleted, but log for debugging
+    throw error; // Re-throw so caller knows deletion failed
   }
 };
 
@@ -71,32 +81,82 @@ export const getFileIdFromUrl = async (url) => {
       filePath = filePath.substring(1);
     }
     
-    // List files in ImageKit to find the fileId by path
-    const files = await imagekit.listFiles({
-      path: filePath,
-      limit: 1,
-    });
-    
-    if (files && files.length > 0) {
-      return files[0].fileId;
-    }
-    
-    // If not found by exact path, try searching by file name
+    // Extract filename from path
     const fileName = filePath.split('/').pop();
-    if (fileName) {
-      const searchFiles = await imagekit.listFiles({
-        name: fileName,
-        limit: 10,
+    
+    // Try multiple search strategies
+    // Strategy 1: Search by exact filePath
+    try {
+      const filesByPath = await imagekit.listFiles({
+        path: filePath,
+        limit: 100,
       });
       
-      // Find exact match by URL
-      const exactMatch = searchFiles?.find(file => file.url === url || file.filePath === filePath);
-      if (exactMatch) {
-        return exactMatch.fileId;
+      if (filesByPath && filesByPath.length > 0) {
+        // Find exact match by URL or filePath
+        const exactMatch = filesByPath.find(file => 
+          file.url === url || 
+          file.filePath === filePath ||
+          file.filePath === `/${filePath}`
+        );
+        if (exactMatch) {
+          return exactMatch.fileId;
+        }
+        // If no exact match, return first result (might be the file)
+        return filesByPath[0].fileId;
+      }
+    } catch (pathError) {
+      console.log('Path search failed, trying name search:', pathError.message);
+    }
+    
+    // Strategy 2: Search by filename
+    if (fileName) {
+      try {
+        const filesByName = await imagekit.listFiles({
+          name: fileName,
+          limit: 100,
+        });
+        
+        if (filesByName && filesByName.length > 0) {
+          // Find exact match by URL or filePath
+          const exactMatch = filesByName.find(file => 
+            file.url === url || 
+            file.filePath === filePath ||
+            file.filePath === `/${filePath}` ||
+            file.name === fileName
+          );
+          if (exactMatch) {
+            return exactMatch.fileId;
+          }
+        }
+      } catch (nameError) {
+        console.log('Name search failed:', nameError.message);
       }
     }
+    
+    // Strategy 3: List all files and search (last resort - might be slow)
+    try {
+      const allFiles = await imagekit.listFiles({
+        limit: 1000,
+      });
+      
+      if (allFiles && allFiles.length > 0) {
+        const exactMatch = allFiles.find(file => 
+          file.url === url || 
+          file.filePath === filePath ||
+          file.filePath === `/${filePath}`
+        );
+        if (exactMatch) {
+          return exactMatch.fileId;
+        }
+      }
+    } catch (listError) {
+      console.log('List all files failed:', listError.message);
+    }
+    
   } catch (error) {
     console.error('Error extracting fileId from URL:', error);
+    console.error('URL was:', url);
   }
   
   return null;

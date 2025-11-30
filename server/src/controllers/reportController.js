@@ -42,10 +42,12 @@ export const createReport = async (req, res, next) => {
   try {
     const { date, familyMemberId, ...rest } = req.body;
     
-    // Get file URL from ImageKit if file was uploaded
+    // Get file URL and fileId from ImageKit if file was uploaded
     let fileUrl = null;
+    let fileId = null;
     if (req.file && req.file.url) {
       fileUrl = req.file.url; // ImageKit URL
+      fileId = req.file.fileId; // ImageKit fileId for deletion
     }
     
     const report = await prisma.report.create({
@@ -54,6 +56,7 @@ export const createReport = async (req, res, next) => {
         date: date ? new Date(date) : new Date(),
         familyMemberId: familyMemberId || null,
         fileUrl,
+        fileId, // Store fileId for easy deletion
         userId: req.user.id
       }
     });
@@ -88,21 +91,30 @@ export const updateReport = async (req, res, next) => {
         where: { id, userId: req.user.id }
       });
       
-      // Delete old file from ImageKit if it exists and is an ImageKit URL
-      if (existingReport?.fileUrl && existingReport.fileUrl.includes('imagekit.io')) {
+      // Delete old file from ImageKit if it exists
+      if (existingReport?.fileId) {
+        // Use stored fileId if available (preferred method)
+        try {
+          await deleteFromImageKit(existingReport.fileId);
+          console.log('Old file deleted from ImageKit using stored fileId:', existingReport.fileId);
+        } catch (error) {
+          console.error('Error deleting old file from ImageKit:', error.message);
+        }
+      } else if (existingReport?.fileUrl && existingReport.fileUrl.includes('imagekit.io')) {
+        // Fallback: try to extract fileId from URL
         try {
           const oldFileId = await getFileIdFromUrl(existingReport.fileUrl);
           if (oldFileId) {
             await deleteFromImageKit(oldFileId);
-            console.log('Old file deleted from ImageKit:', existingReport.fileUrl);
+            console.log('Old file deleted from ImageKit using extracted fileId:', existingReport.fileUrl);
           }
         } catch (error) {
-          // Log error but don't fail the update - old file might already be deleted
           console.error('Error deleting old file from ImageKit:', error.message);
         }
       }
       
       updateData.fileUrl = req.file.url; // ImageKit URL
+      updateData.fileId = req.file.fileId; // Store fileId for future deletion
     }
 
     const report = await prisma.report.update({
@@ -137,19 +149,32 @@ export const deleteReport = async (req, res, next) => {
     }
 
     // Delete associated file from ImageKit if it exists
-    if (report.fileUrl && report.fileUrl.includes('imagekit.io')) {
+    if (report.fileId) {
+      // Use stored fileId (preferred method - most reliable)
       try {
-        // Extract fileId from ImageKit URL
+        console.log('Deleting file from ImageKit using stored fileId:', report.fileId);
+        await deleteFromImageKit(report.fileId);
+        console.log('✅ File successfully deleted from ImageKit');
+      } catch (error) {
+        // Log error but don't fail the deletion - file might already be deleted
+        console.error('❌ Error deleting file from ImageKit:', error.message);
+      }
+    } else if (report.fileUrl && report.fileUrl.includes('imagekit.io')) {
+      // Fallback: try to extract fileId from URL (for older reports without fileId)
+      try {
+        console.log('Attempting to delete file from ImageKit (extracting fileId from URL):', report.fileUrl);
         const fileId = await getFileIdFromUrl(report.fileUrl);
         if (fileId) {
+          console.log('Found fileId:', fileId);
           await deleteFromImageKit(fileId);
-          console.log('File deleted from ImageKit:', report.fileUrl);
+          console.log('✅ File successfully deleted from ImageKit');
         } else {
-          console.warn('Could not extract fileId from ImageKit URL:', report.fileUrl);
+          console.warn('⚠️ Could not extract fileId from ImageKit URL:', report.fileUrl);
+          console.warn('File will remain in ImageKit storage. You may need to delete it manually.');
         }
       } catch (error) {
         // Log error but don't fail the deletion - file might already be deleted
-        console.error('Error deleting file from ImageKit:', error.message);
+        console.error('❌ Error deleting file from ImageKit:', error.message);
       }
     }
 

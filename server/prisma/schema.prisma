@@ -101,6 +101,7 @@ model Report {
   type             String   @default("PDF")
   category         String   @default("Report")
   fileUrl          String?
+  fileId           String?  // ImageKit file ID for deletion
   familyMemberId   String?
   familyMemberName String?
   createdAt        DateTime @default(now())
