@@ -1,4 +1,5 @@
 import 'dotenv/config';
+// Fixed: Use default import for CommonJS compatibility in ES modules
 import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
 import { PrismaPg } from '@prisma/adapter-pg';
