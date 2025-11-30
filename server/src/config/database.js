@@ -6,9 +6,17 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 // Create a PostgreSQL connection pool for NeonDB
-const connectionString = process.env.DATABASE_URL;
+let connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error('DATABASE_URL environment variable is not set');
+}
+
+// Remove channel_binding=require if present (not supported by Neon)
+// Neon requires sslmode=require but channel_binding can cause connection issues
+if (connectionString.includes('channel_binding=require')) {
+  connectionString = connectionString.replace(/[&?]channel_binding=require/g, '');
+  // Clean up any double ampersands or question marks
+  connectionString = connectionString.replace(/[&]{2,}/g, '&').replace(/\?&/g, '?');
 }
 
 const pool = new Pool({ connectionString });
