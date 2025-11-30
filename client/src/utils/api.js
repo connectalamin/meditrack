@@ -1,23 +1,8 @@
-// Get API URL from environment or use production as default
-// In production, VITE_API_URL should be set to https://meditrack-server-nine.vercel.app/api
-const getApiBaseUrl = () => {
-  // Check if we're in production (Vercel sets this)
-  const isProduction = import.meta.env.PROD || window.location.hostname !== 'localhost';
-  
-  // Use environment variable if available
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  
-  // Fallback: use production URL if in production, otherwise localhost
-  if (isProduction) {
-    return 'https://meditrack-server-nine.vercel.app/api';
-  }
-  
-  return 'http://localhost:5000/api';
-};
-
-const API_BASE_URL = getApiBaseUrl();
+// Get API URL from environment variable
+// Set VITE_API_URL in .env.local for local development: VITE_API_URL=http://localhost:5000/api
+// In production (Vercel), VITE_API_URL should be set to: https://meditrack-server-nine.vercel.app/api
+// If not set, defaults to production server URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://meditrack-server-nine.vercel.app/api';
 
 // Get stored tokens
 const getTokens = () => {

@@ -136,10 +136,8 @@ const ReportsTab = () => {
     }
 
     // Use the same API URL logic as the main api.js
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 
-      (window.location.hostname !== 'localhost' 
-        ? 'https://meditrack-server-nine.vercel.app/api' 
-        : 'http://localhost:5000/api');
+    // Set VITE_API_URL in .env.local for local development
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://meditrack-server-nine.vercel.app/api';
     const baseUrl = API_BASE_URL.replace('/api', '');
     const fileUrl = report.fileUrl.startsWith('http') 
       ? report.fileUrl 
