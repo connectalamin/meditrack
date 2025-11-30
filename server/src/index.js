@@ -32,7 +32,7 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-// Middleware - CORS configuration
+// Middleware - CORS configuration (MUST be before other middleware)
 // Allow multiple origins for development and production
 const allowedOrigins = [
   'http://localhost:5173', // Local development
@@ -69,13 +69,10 @@ const corsOptions = {
       return callback(null, true);
     }
     
-    // Log for debugging (only in development)
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('CORS blocked origin:', origin);
-      console.log('Normalized origin:', normalizedOrigin);
-      console.log('Allowed origins:', allowedOrigins);
-      console.log('Normalized allowed:', normalizedAllowed);
-    }
+    // Log for debugging (enable in production to troubleshoot)
+    console.log('CORS check - Origin:', origin);
+    console.log('CORS check - Normalized:', normalizedOrigin);
+    console.log('CORS check - Allowed:', normalizedAllowed);
     
     // Return false instead of error for better compatibility
     callback(null, false);
@@ -89,10 +86,26 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 
+// Apply CORS middleware
 app.use(cors(corsOptions));
 
-// Explicit OPTIONS handler as fallback (for preflight requests)
-app.options('*', cors(corsOptions));
+// Explicit OPTIONS handler for all routes (critical for preflight requests)
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  const normalizedOrigin = normalizeOrigin(origin);
+  const normalizedAllowed = allowedOrigins.map(normalizeOrigin);
+  
+  if (origin && normalizedAllowed.includes(normalizedOrigin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-device-token');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+    return res.status(204).send();
+  }
+  
+  res.status(204).send();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
