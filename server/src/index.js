@@ -41,6 +41,32 @@ const normalizeOrigin = (origin) => {
   return origin.endsWith('/') ? origin.slice(0, -1) : origin;
 };
 
+// Add CORS headers to all responses (including OPTIONS) - this runs before everything
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const normalizedOrigin = normalizeOrigin(origin);
+  const normalizedAllowed = allowedOrigins.map(normalizeOrigin);
+  
+  // Set CORS headers if origin is allowed
+  if (origin && normalizedAllowed.includes(normalizedOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (!origin || (process.env.NODE_ENV !== 'production' && origin && origin.includes('localhost'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-device-token');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  
+  // Handle preflight OPTIONS request immediately
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  
+  next();
+});
+
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
