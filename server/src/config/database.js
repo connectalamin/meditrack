@@ -2,12 +2,10 @@ import 'dotenv/config';
 // Fixed: Use default import for CommonJS compatibility in ES modules
 import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
-import { PrismaPg } from '@prisma/adapter-pg';
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-
+// Simplified: Standard Prisma Client works fine with NeonDB on Vercel
+// No need for PrismaPg adapter - it was causing deployment issues
 const prisma = new PrismaClient({
-  adapter,
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
 });
 
