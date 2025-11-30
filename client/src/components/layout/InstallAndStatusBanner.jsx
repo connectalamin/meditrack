@@ -9,20 +9,30 @@ const InstallAndStatusBanner = () => {
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event) => {
+      // Prevent default browser prompt to show our custom banner
       event.preventDefault();
       setDeferredPrompt(event);
       setShowInstall(true);
+      
+      // Note: The browser warning "Banner not shown" is expected and harmless.
+      // We prevent the default prompt to show a custom UI, then call prompt() when user clicks Install.
+      // This is the recommended PWA installation pattern.
     };
 
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    // Only add listener if PWA is supported
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    }
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      if ('serviceWorker' in navigator) {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      }
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };

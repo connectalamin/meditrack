@@ -7,7 +7,13 @@ import './index.css';
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('/sw.js')
+      .register('/sw.js', { scope: '/' })
+      .then((registration) => {
+        // Service worker registered successfully
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Service worker registered:', registration);
+        }
+      })
       .catch((error) => {
         console.error('Service worker registration failed:', error);
       });
