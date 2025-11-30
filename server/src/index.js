@@ -76,23 +76,30 @@ app.use((req, res) => {
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+// Export app for Vercel serverless functions
+export default app;
 
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Only start server if not running on Vercel
+// Vercel sets the VERCEL environment variable
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
 
-// Graceful shutdown
-const gracefulShutdown = async () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  server.close(async () => {
-    await prisma.$disconnect();
-    console.log('✅ Server closed');
-    process.exit(0);
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
-};
 
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
+  // Graceful shutdown
+  const gracefulShutdown = async () => {
+    console.log('\n🛑 Shutting down gracefully...');
+    server.close(async () => {
+      await prisma.$disconnect();
+      console.log('✅ Server closed');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', gracefulShutdown);
+  process.on('SIGINT', gracefulShutdown);
+}
 
