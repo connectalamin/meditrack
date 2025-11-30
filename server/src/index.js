@@ -21,6 +21,10 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy - Required for Vercel and other proxy services
+// This allows express-rate-limit to correctly identify client IPs
+app.set('trust proxy', true);
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
