@@ -32,10 +32,33 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-// Middleware
+// Middleware - CORS configuration
+// Allow multiple origins for development and production
+const allowedOrigins = [
+  'http://localhost:5173', // Local development
+  'https://meditrack-jade.vercel.app', // Production client
+  process.env.CLIENT_URL // Additional from env
+].filter(Boolean); // Remove any undefined values
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In development, allow localhost variations
+      if (process.env.NODE_ENV !== 'production' && origin.includes('localhost')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-device-token']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
