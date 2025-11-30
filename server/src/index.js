@@ -79,12 +79,27 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 
-// Apply CORS middleware
+// Apply CORS middleware - MUST be before any other middleware
 app.use(cors(corsOptions));
 
 // Explicit OPTIONS handler for all routes (critical for preflight requests)
 // This MUST be before rate limiting to ensure OPTIONS requests are handled
-app.options('*', cors(corsOptions), (req, res) => {
+app.options('*', (req, res) => {
+  // Set CORS headers manually for OPTIONS requests
+  const origin = req.headers.origin;
+  const normalizedOrigin = normalizeOrigin(origin);
+  const normalizedAllowed = allowedOrigins.map(normalizeOrigin);
+  
+  if (origin && normalizedAllowed.includes(normalizedOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (!origin || (process.env.NODE_ENV !== 'production' && origin.includes('localhost'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-device-token');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400');
   res.status(204).end();
 });
 
