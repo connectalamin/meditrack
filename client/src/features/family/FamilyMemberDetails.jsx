@@ -524,6 +524,42 @@ const FamilyMemberDetails = ({ member, onBack }) => {
         yPos += 6;
       });
       
+      // Summary at the end
+      if (metricData.length > 1) {
+        yPos += 5;
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(10);
+        doc.text('Summary', 14, yPos);
+        yPos += 6;
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(9);
+        
+        if (type === 'Blood Pressure') {
+          const avgSys = metricData.reduce((sum, r) => {
+            const [sys] = r.value.split('/').map(Number);
+            return sum + (isNaN(sys) ? 0 : sys);
+          }, 0) / metricData.length;
+          const avgDia = metricData.reduce((sum, r) => {
+            const [, dia] = r.value.split('/').map(Number);
+            return sum + (isNaN(dia) ? 0 : dia);
+          }, 0) / metricData.length;
+          doc.text(`Average: ${Math.round(avgSys)}/${Math.round(avgDia)} ${displayUnit || 'mmHg'}`, 14, yPos);
+        } else {
+          const avg = metricData.reduce((sum, r) => {
+            let val = Number(r.value);
+            if (hasConversion && displayUnit && r.unit && r.unit !== displayUnit) {
+              val = parseFloat(convertValue(r.value, type, r.unit, displayUnit)) || val;
+            }
+            return sum + (isNaN(val) ? 0 : val);
+          }, 0) / metricData.length;
+          doc.text(`Average: ${avg.toFixed(2)} ${displayUnit}`, 14, yPos);
+        }
+      }
+      
       const fileName = `${type.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-vital-log-${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
     } catch (error) {
@@ -745,7 +781,40 @@ const FamilyMemberDetails = ({ member, onBack }) => {
           yPos += 6;
         });
         
-        yPos += 8;
+        // Summary for this metric
+        if (records.length > 1) {
+          yPos += 5;
+          if (yPos > 280) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.setFontSize(8);
+          doc.setFont(undefined, 'italic');
+          if (type === 'Blood Pressure') {
+            const avgSys = records.reduce((sum, r) => {
+              const [sys] = r.value.split('/').map(Number);
+              return sum + (isNaN(sys) ? 0 : sys);
+            }, 0) / records.length;
+            const avgDia = records.reduce((sum, r) => {
+              const [, dia] = r.value.split('/').map(Number);
+              return sum + (isNaN(dia) ? 0 : dia);
+            }, 0) / records.length;
+            doc.text(`Average: ${Math.round(avgSys)}/${Math.round(avgDia)} ${displayUnit || 'mmHg'}`, 14, yPos);
+          } else {
+            const avg = records.reduce((sum, r) => {
+              let val = Number(r.value);
+              if (hasConversion && displayUnit && r.unit && r.unit !== displayUnit) {
+                val = parseFloat(convertValue(r.value, type, r.unit, displayUnit)) || val;
+              }
+              return sum + (isNaN(val) ? 0 : val);
+            }, 0) / records.length;
+            doc.text(`Average: ${avg.toFixed(2)} ${displayUnit}`, 14, yPos);
+          }
+          yPos += 10;
+          doc.setFont(undefined, 'normal');
+        } else {
+          yPos += 8;
+        }
       });
       
       const fileName = `${member.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-vital-report-${new Date().toISOString().split('T')[0]}.pdf`;
