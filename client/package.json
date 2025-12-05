@@ -8,14 +8,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/query-sync-storage-persister": "^5.90.11",
     "@tanstack/react-query": "^5.90.11",
     "@tanstack/react-query-persist-client": "^5.90.11",
-    "@tanstack/query-sync-storage-persister": "^5.90.11",
-    "localforage": "^1.10.0",
     "jspdf": "^2.5.1",
+    "localforage": "^1.10.0",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-time-picker-input": "^2.2.4",
     "recharts": "^2.10.3"
   },
   "devDependencies": {

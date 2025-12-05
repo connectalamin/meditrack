@@ -119,6 +119,7 @@ model HealthData {
   value          String
   unit           String?
   date           String
+  time           String?
   createdAt      DateTime @default(now())
 
   familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
