@@ -145,7 +145,8 @@ export const getMe = async (req, res, next) => {
         id: true,
         email: true,
         displayName: true,
-        linkedFamilyId: true
+        linkedFamilyId: true,
+        medicinesLoaded: true
       }
     });
 
@@ -169,6 +170,7 @@ export const getMe = async (req, res, next) => {
         email: user.email,
         displayName: user.displayName,
         linkedFamilyId: user.linkedFamilyId,
+        medicinesLoaded: user.medicinesLoaded,
         linkedUser: linkedUser
       }
     });

@@ -38,9 +38,14 @@ export const updateFamilyMemberSchema = familyMemberSchema.partial();
 // Medication schemas
 export const medicationSchema = z.object({
   name: z.string().min(1, 'Medication name is required'),
+  category: z.string().optional(),
+  genericName: z.string().optional(),
+  brandName: z.string().optional(),
   strength: z.string().optional(),
   price: z.number().min(0).optional(),
   packSize: z.number().min(1).optional(),
+  packSizeDescription: z.string().optional(),
+  primaryUse: z.string().optional(),
   unit: z.string().optional(),
 });
 
@@ -74,7 +79,7 @@ export const updateHealthDataSchema = healthDataSchema.partial();
 export const planSchema = z.object({
   medicationId: z.string().min(1, 'Medication ID is required'),
   medicationName: z.string().min(1, 'Medication name is required'),
-  dosage: z.number().min(1),
+  dosage: z.number().min(0.1, 'Dosage must be at least 0.1'),
   frequency: z.number().min(1),
   price: z.number().min(0),
   packSize: z.number().min(1),

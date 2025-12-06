@@ -10,6 +10,7 @@ router.use(authenticate);
 
 router.get('/', medicationController.getMedications);
 router.post('/', validate(medicationSchema), medicationController.createMedication);
+router.post('/load', medicationController.loadMedicines);
 router.put('/:id', validate(updateMedicationSchema), medicationController.updateMedication);
 router.delete('/:id', medicationController.deleteMedication);
 

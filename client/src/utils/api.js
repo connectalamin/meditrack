@@ -267,6 +267,13 @@ export const medicationsAPI = {
   delete: async (id) => {
     await apiRequest(`/medications/${id}`, { method: 'DELETE' });
   },
+
+  loadMedicines: async () => {
+    const response = await apiRequest('/medications/load', {
+      method: 'POST',
+    });
+    return response;
+  },
 };
 
 // Reports API

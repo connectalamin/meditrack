@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Share2, Check, ClipboardList, Database, Trash2, Loader2, Users, Link2, X } from 'lucide-react';
+import { Share2, Check, ClipboardList, Database, Trash2, Loader2, Users, Link2, X, Pill } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { authAPI } from '../../utils/api';
+import { authAPI, medicationsAPI } from '../../utils/api';
 import { 
   useCreateMedication,
   useCreateFamilyMember,
   useCreatePlan,
   useCreateReport,
   useCreateHealthData,
-  useCreateAppointment
+  useCreateAppointment,
+  useMedications
 } from '../../hooks/useData';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -19,7 +20,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import { seedDemoData } from '../../utils/seedDemoData';
 
 const SettingsTab = () => {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const queryClient = useQueryClient();
   
   // Get mutation hooks for seedDemoData
@@ -51,6 +52,10 @@ const SettingsTab = () => {
   const [loadingLinkedAccounts, setLoadingLinkedAccounts] = useState(true);
   const [removeConfirm, setRemoveConfirm] = useState({ isOpen: false, accountId: null, accountName: '' });
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isLoadingMedicines, setIsLoadingMedicines] = useState(false);
+  const [medicineLoadMessage, setMedicineLoadMessage] = useState({ type: null, text: '' });
+  
+  const { data: medications = [] } = useMedications();
 
   const copyToClipboard = (text) => {
     const textArea = document.createElement("textarea");
@@ -297,35 +302,95 @@ const SettingsTab = () => {
       </Card>
 
       <Card>
-        <h3 className="text-lg font-bold text-slate-900 dark:text-[#F8FAFC] mb-2">Demo & Data Tools</h3>
-        <p className="text-sm text-slate-500 dark:text-[#94a3b8] mb-4">
-          Quickly populate your dashboard with realistic sample data or clear everything for a fresh start.
-        </p>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="h-12 w-12 bg-blue-100 dark:bg-blue-500/10 rounded-full flex items-center justify-center">
+            <Pill className="text-blue-600 dark:text-blue-400" size={20} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-[#F8FAFC]">Medicine Database</h3>
+            <p className="text-sm text-slate-500 dark:text-[#94a3b8]">Load comprehensive medicine database</p>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
           <Button
             variant="outline"
             onClick={async () => {
               if (!user) {
-                alert('Please log in to seed demo data.');
+                setMedicineLoadMessage({ type: 'error', text: 'Please log in to load medicines.' });
+                return;
+              }
+              if (user.medicinesLoaded) {
+                setMedicineLoadMessage({ type: 'error', text: 'Medicines have already been loaded.' });
                 return;
               }
               try {
-                setIsSeeding(true);
-                await seedDemoData(appContext);
+                setIsLoadingMedicines(true);
+                setMedicineLoadMessage({ type: null, text: '' });
+                const response = await medicationsAPI.loadMedicines();
+                setMedicineLoadMessage({ 
+                  type: 'success', 
+                  text: `Successfully loaded ${response.count || 'all'} medicines!` 
+                });
+                // Refresh medications list
+                queryClient.invalidateQueries(['medications']);
+                // Refresh user data to update medicinesLoaded flag
+                const userResponse = await authAPI.getMe();
+                if (userResponse.user) {
+                  setUser(userResponse.user);
+                }
               } catch (error) {
-                console.error('Error seeding demo data:', error);
-                alert(`Failed to seed demo data: ${error.message || 'Please make sure you are logged in.'}`);
+                console.error('Error loading medicines:', error);
+                setMedicineLoadMessage({ 
+                  type: 'error', 
+                  text: error.message || 'Failed to load medicines. Please try again.' 
+                });
               } finally {
-                setIsSeeding(false);
+                setIsLoadingMedicines(false);
               }
             }}
-            disabled={isSeeding || isClearing || !user}
-            className="border-dashed flex items-center justify-center gap-2"
+            disabled={isLoadingMedicines || !user || user.medicinesLoaded}
+            className={`flex items-center justify-center gap-2 ${
+              user?.medicinesLoaded ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
-            <Database size={16} />
-            {isSeeding ? 'Seeding Demo Data…' : 'Load Demo Data'}
+            {isLoadingMedicines ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Loading Medicines...
+              </>
+            ) : (
+              <>
+                <Database size={16} />
+                {user?.medicinesLoaded ? 'Medicines Already Loaded' : 'Load Medicines'}
+              </>
+            )}
           </Button>
+          
+          {medicineLoadMessage.type && (
+            <div className={`p-3 rounded-lg text-sm ${
+              medicineLoadMessage.type === 'success' 
+                ? 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                : 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-300'
+            }`}>
+              {medicineLoadMessage.text}
+            </div>
+          )}
+          
+          {user?.medicinesLoaded && (
+            <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
+              Medicines have been loaded. You currently have {medications.length} medicines in your database.
+            </p>
+          )}
+        </div>
+      </Card>
 
+      <Card>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-[#F8FAFC] mb-2">Data Management</h3>
+        <p className="text-sm text-slate-500 dark:text-[#94a3b8] mb-4">
+          Clear all data for a fresh start. This action cannot be undone.
+        </p>
+        <div className="flex justify-start">
           <Button
             variant="destructive"
             onClick={() => setConfirmClearOpen(true)}

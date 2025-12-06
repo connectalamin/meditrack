@@ -18,6 +18,7 @@ import Badge from '../../components/ui/Badge';
 import Input from '../../components/ui/Input';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import Select from '../../components/ui/Select';
+import Autocomplete from '../../components/ui/Autocomplete';
 
 const PurchaseList = ({ onBack }) => {
   const [textCopied, setTextCopied] = useState(false);
@@ -782,18 +783,16 @@ const PurchaseList = ({ onBack }) => {
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Select
+              <Autocomplete
                 label="Select from Database (Optional)"
                 value={formData.medicationId}
                 onChange={(value) => handleMedicationSelect(value)}
-                placeholder="Select from Database..."
-                options={[
-                  { value: '', label: 'Select from Database...' },
-                  ...medications.map(m => ({
-                    value: m.id,
-                    label: `${m.name}${m.strength ? ` (${m.strength})` : ''}`
-                  }))
-                ]}
+                placeholder="Type medicine name, generic name, or category to search..."
+                options={medications.map(m => ({
+                  value: m.id,
+                  label: `${m.name}${m.genericName ? ` (${m.genericName})` : ''}${m.strength ? ` - ${m.strength}` : ''}${m.category ? ` [${m.category}]` : ''}`,
+                  searchText: `${m.name} ${m.genericName || ''} ${m.category || ''} ${m.strength || ''}`.toLowerCase()
+                }))}
               />
             </div>
             <Input
@@ -896,12 +895,35 @@ const PurchaseList = ({ onBack }) => {
                   <div key={item.id} className="border border-slate-200 dark:border-[#27335D] rounded-lg p-4 bg-slate-50/50 dark:bg-[#111725]">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
-                        <p className="font-semibold text-slate-900 dark:text-[#F8FAFC]">
-                          {item.medicationName}
-                        </p>
-                        {item.strength && (
-                          <p className="text-xs text-slate-500 dark:text-[#94a3b8] mt-0.5">{item.strength}</p>
-                        )}
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <p className="font-semibold text-slate-900 dark:text-[#F8FAFC]">
+                            {item.medicationName}
+                          </p>
+                          {item.medicationId && (() => {
+                            const med = medications.find(m => m.id === item.medicationId);
+                            return med?.category ? (
+                              <Badge variant="info" className="text-xs">
+                                {med.category}
+                              </Badge>
+                            ) : null;
+                          })()}
+                        </div>
+                        {item.medicationId && (() => {
+                          const med = medications.find(m => m.id === item.medicationId);
+                          return med?.genericName ? (
+                            <p className="text-xs text-slate-500 dark:text-[#94a3b8] mt-0.5">
+                              {med.genericName}
+                            </p>
+                          ) : null;
+                        })()}
+                        {item.medicationId && (() => {
+                          const med = medications.find(m => m.id === item.medicationId);
+                          return med?.strength ? (
+                            <p className="text-xs text-slate-500 dark:text-[#94a3b8] mt-0.5">
+                              Strength: {med.strength}
+                            </p>
+                          ) : null;
+                        })()}
                       </div>
                       <div className="flex gap-2 ml-2">
                         <Button
@@ -979,12 +1001,35 @@ const PurchaseList = ({ onBack }) => {
                       <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-[#27335D]/30 transition-colors">
                         <td className="px-4 py-3">
                           <div>
-                            <p className="font-medium text-slate-900 dark:text-[#F8FAFC]">
-                              {item.medicationName}
-                            </p>
-                            {item.strength && (
-                              <p className="text-xs text-slate-500 dark:text-[#94a3b8]">{item.strength}</p>
-                            )}
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <p className="font-medium text-slate-900 dark:text-[#F8FAFC]">
+                                {item.medicationName}
+                              </p>
+                              {item.medicationId && (() => {
+                                const med = medications.find(m => m.id === item.medicationId);
+                                return med?.category ? (
+                                  <Badge variant="info" className="text-xs">
+                                    {med.category}
+                                  </Badge>
+                                ) : null;
+                              })()}
+                            </div>
+                            {item.medicationId && (() => {
+                              const med = medications.find(m => m.id === item.medicationId);
+                              return med?.genericName ? (
+                                <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
+                                  {med.genericName}
+                                </p>
+                              ) : null;
+                            })()}
+                            {item.medicationId && (() => {
+                              const med = medications.find(m => m.id === item.medicationId);
+                              return med?.strength ? (
+                                <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
+                                  Strength: {med.strength}
+                                </p>
+                              ) : null;
+                            })()}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center text-slate-900 dark:text-[#F8FAFC]">

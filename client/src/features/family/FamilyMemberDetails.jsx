@@ -22,6 +22,7 @@ import Badge from '../../components/ui/Badge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import TimePicker from '../../components/ui/TimePicker';
 import Select from '../../components/ui/Select';
+import Autocomplete from '../../components/ui/Autocomplete';
 import { pdfAPI } from '../../utils/api';
 import {
   getMetricConfig,
@@ -987,22 +988,20 @@ const FamilyMemberDetails = ({ member, onBack }) => {
               )}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div className="md:col-span-2">
-                  <Select
+                  <Autocomplete
                     label="Select Medicine"
                     value={newPlan.medId}
                     onChange={(value) => setNewPlan({...newPlan, medId: value})}
-                    placeholder="Select from Database..."
+                    placeholder="Type medicine name, generic name, or category to search..."
                     disabled={!!editingPlanId}
-                    options={[
-                      { value: '', label: 'Select from Database...' },
-                      ...medications.map(m => ({
-                        value: m.id,
-                        label: `${m.name}${m.strength ? ` (${m.strength})` : ''}`
-                      }))
-                    ]}
+                    options={medications.map(m => ({
+                      value: m.id,
+                      label: `${m.name}${m.genericName ? ` (${m.genericName})` : ''}${m.strength ? ` - ${m.strength}` : ''}${m.category ? ` [${m.category}]` : ''}`,
+                      searchText: `${m.name} ${m.genericName || ''} ${m.category || ''} ${m.strength || ''}`.toLowerCase()
+                    }))}
                   />
                 </div>
-                <div><Input label="Dose (Qty)" type="number" value={newPlan.dosage} onChange={e => setNewPlan({...newPlan, dosage: e.target.value})} className="mb-0" /></div>
+                <div><Input label="Dose (Qty)" type="number" step="0.1" min="0.1" value={newPlan.dosage} onChange={e => setNewPlan({...newPlan, dosage: e.target.value})} className="mb-0" /></div>
                 <div><Input label="Freq (Daily)" type="number" value={newPlan.frequency} onChange={e => setNewPlan({...newPlan, frequency: e.target.value})} className="mb-0" /></div>
               </div>
               <div className="flex gap-2 mt-4">
@@ -1024,7 +1023,7 @@ const FamilyMemberDetails = ({ member, onBack }) => {
                         {plan.medicationName}
                       </p>
                       <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
-                        {plan.dosage} tablet(s) × {plan.frequency}/day
+                        {plan.dosage % 1 === 0 ? plan.dosage : plan.dosage.toFixed(1)} tablet(s) × {plan.frequency}/day
                       </p>
                     </div>
                     <div className="flex gap-2 ml-2">
@@ -1083,7 +1082,7 @@ const FamilyMemberDetails = ({ member, onBack }) => {
                   return (
                     <tr key={plan.id} className="hover:bg-slate-50 dark:hover:bg-[#27335D]/30 transition-colors group">
                       <td className="px-4 py-3 font-medium text-slate-900 dark:text-[#F8FAFC]">{plan.medicationName}</td>
-                      <td className="px-4 py-3 text-slate-500 dark:text-[#94a3b8]">{plan.dosage} tablet(s) x {plan.frequency}/day</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-[#94a3b8]">{plan.dosage % 1 === 0 ? plan.dosage : plan.dosage.toFixed(1)} tablet(s) x {plan.frequency}/day</td>
                       <td className="px-4 py-3 text-slate-900 dark:text-[#F8FAFC]">{monthly}</td>
                       <td className="px-4 py-3"><Badge variant="warning">{packs} packs</Badge></td>
                       <td className="px-4 py-3 font-bold text-slate-900 dark:text-[#F8FAFC]">{cost} BDT</td>
