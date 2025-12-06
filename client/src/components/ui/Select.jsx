@@ -12,24 +12,47 @@ const Select = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      if (!isMountedRef.current) return;
+      if (containerRef.current && containerRef.current.contains(event.target)) {
+        return;
+      }
+      if (isMountedRef.current) {
         setIsOpen(false);
       }
     };
 
-    // Use a small timeout to ensure the event listener is added after the DOM is updated
+    // Use capture phase to catch events earlier
     const timeoutId = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
+      if (isMountedRef.current) {
+        document.addEventListener('mousedown', handleClickOutside, true);
+        document.addEventListener('touchstart', handleClickOutside, true);
+      }
     }, 0);
 
     return () => {
       clearTimeout(timeoutId);
-      document.removeEventListener('mousedown', handleClickOutside);
+      // Only remove if still mounted
+      if (isMountedRef.current) {
+        try {
+          document.removeEventListener('mousedown', handleClickOutside, true);
+          document.removeEventListener('touchstart', handleClickOutside, true);
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      }
     };
   }, [isOpen]);
 

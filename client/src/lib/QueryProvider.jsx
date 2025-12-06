@@ -1,37 +1,13 @@
-import React from 'react';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './queryClient';
 
-// Persister for offline cache (localStorage)
-const persister =
-  typeof window !== 'undefined'
-    ? createSyncStoragePersister({
-        storage: window.localStorage,
-        key: 'meditrack-react-query-cache',
-      })
-    : null;
-
+// IMPORTANT: Using QueryClientProvider (NOT PersistQueryClientProvider)
+// This avoids React hook errors and doesn't require @tanstack/react-query-persist-client
 const QueryProvider = ({ children }) => {
-  if (!persister) {
-    // SSR/Non-browser safety fallback
-    return (
-      <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: undefined }}>
-        {children}
-      </PersistQueryClientProvider>
-    );
-  }
-
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{
-        persister,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      }}
-    >
+    <QueryClientProvider client={queryClient}>
       {children}
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
   );
 };
 

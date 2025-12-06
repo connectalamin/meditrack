@@ -34,6 +34,15 @@ const ReportsTab = () => {
   const [filterMember, setFilterMember] = useState('all');
   const [filterFileType, setFilterFileType] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterCategory, filterMember, filterFileType, sortBy]);
 
   useEffect(() => {
     if (editingId) {
@@ -198,6 +207,12 @@ const ReportsTab = () => {
 
     return filtered;
   }, [reports, sortBy, filterCategory, filterMember, filterFileType]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredAndSortedReports.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedReports = filteredAndSortedReports.slice(startIndex, endIndex);
 
   const hasActiveFilters = filterCategory !== 'all' || filterMember !== 'all' || filterFileType !== 'all';
 
@@ -394,7 +409,8 @@ const ReportsTab = () => {
         {/* Results count */}
         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-[#27335D]">
           <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
-            Showing {filteredAndSortedReports.length} of {reports.length} documents
+            Showing {filteredAndSortedReports.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredAndSortedReports.length)} of {filteredAndSortedReports.length} documents
+            {filteredAndSortedReports.length !== reports.length && ` (${reports.length} total)`}
           </p>
         </div>
       </Card>
@@ -419,7 +435,7 @@ const ReportsTab = () => {
             </div>
           </Card>
         ) : (
-          filteredAndSortedReports.map(report => (
+          paginatedReports.map(report => (
           <div
             key={report.id}
             className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg group hover:border-emerald-500/50 transition-colors"
@@ -506,6 +522,60 @@ const ReportsTab = () => {
           ))
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-200 dark:border-[#27335D]">
+          <div className="text-sm text-slate-500 dark:text-[#94a3b8]">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-xs"
+            >
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-emerald-500 text-white dark:bg-[#34D399] dark:text-[#111725] font-medium'
+                        : 'bg-white dark:bg-[#1B2430] border border-slate-300 dark:border-[#27335D] text-slate-700 dark:text-[#F8FAFC] hover:bg-slate-50 dark:hover:bg-[#27335D]'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-xs"
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={deleteConfirm.isOpen}

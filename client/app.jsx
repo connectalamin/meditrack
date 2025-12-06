@@ -84,24 +84,47 @@ const Badge = ({ children, variant = 'default' }) => {
 const Select = ({ value, onChange, options = [], placeholder = "Select...", className = "", disabled = false, label = "" }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const containerRef = React.useRef(null);
+  const isMountedRef = React.useRef(true);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      if (!isMountedRef.current) return;
+      if (containerRef.current && containerRef.current.contains(event.target)) {
+        return;
+      }
+      if (isMountedRef.current) {
         setIsOpen(false);
       }
     };
 
-    // Use a small timeout to ensure the event listener is added after the DOM is updated
+    // Use capture phase to catch events earlier
     const timeoutId = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
+      if (isMountedRef.current) {
+        document.addEventListener('mousedown', handleClickOutside, true);
+        document.addEventListener('touchstart', handleClickOutside, true);
+      }
     }, 0);
 
     return () => {
       clearTimeout(timeoutId);
-      document.removeEventListener('mousedown', handleClickOutside);
+      // Only remove if still mounted
+      if (isMountedRef.current) {
+        try {
+          document.removeEventListener('mousedown', handleClickOutside, true);
+          document.removeEventListener('touchstart', handleClickOutside, true);
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      }
     };
   }, [isOpen]);
 
@@ -275,14 +298,14 @@ const DashboardLayout = ({ user, sidebarOpen, setSidebarOpen, handleSignOut, the
         />
       )}
       
-      <aside className={`${sidebarOpen ? 'w-64 translate-x-0' : '-translate-x-full md:translate-x-0 w-20'} bg-white dark:bg-[#111725] border-r border-slate-200 dark:border-[#27335D] transition-all duration-300 flex flex-col fixed md:relative z-40 h-full shadow-lg dark:shadow-none`}>
-        <div className="p-4 md:p-6 flex items-center gap-3 border-b border-slate-200 dark:border-[#27335D]">
+      <aside className={`${sidebarOpen ? 'w-64 translate-x-0' : '-translate-x-full md:translate-x-0 md:w-20'} bg-white dark:bg-[#111725] border-r border-slate-200 dark:border-[#27335D] transition-all duration-300 flex flex-col fixed md:relative z-40 h-full shadow-lg dark:shadow-none overflow-hidden`}>
+        <div className="p-4 md:p-6 flex items-center gap-3 border-b border-slate-200 dark:border-[#27335D] shrink-0">
           <div className="h-8 w-8 rounded-lg bg-emerald-500 dark:bg-[#34D399] flex items-center justify-center shrink-0 shadow-sm">
             <Activity className="h-5 w-5 text-white dark:text-[#111725]" />
           </div>
           <span className={`font-bold text-xl tracking-tight transition-opacity duration-200 text-slate-900 dark:text-[#F8FAFC] ${!sidebarOpen && 'opacity-0 hidden md:block'}`}>MediTrack</span>
         </div>
-        <nav className="flex-1 py-4 md:py-6 px-2 md:px-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-4 md:py-6 px-2 md:px-3 space-y-1 overflow-y-auto overflow-x-hidden">
           {navItems.map((item) => (
             <button 
               key={item.id} 
@@ -294,7 +317,7 @@ const DashboardLayout = ({ user, sidebarOpen, setSidebarOpen, handleSignOut, the
             </button>
           ))}
         </nav>
-        <div className="p-2 md:p-3 border-t border-slate-200 dark:border-[#27335D]">
+        <div className="p-2 md:p-3 border-t border-slate-200 dark:border-[#27335D] shrink-0">
           <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-red-500 hover:bg-red-50 dark:text-[#ef4444] dark:hover:bg-[#ef4444]/10 transition-colors">
             <LogOut className="h-5 w-5 shrink-0" />
             <span className={`whitespace-nowrap transition-opacity duration-200 ${!sidebarOpen && 'opacity-0 hidden md:block'}`}>Sign Out</span>

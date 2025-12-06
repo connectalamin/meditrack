@@ -3,6 +3,14 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    host: 'localhost',
+    port: 5173,
+    hmr: {
+      host: 'localhost',
+      port: 5173,
+    },
+  },
   build: {
     // Optimize build output
     minify: 'esbuild', // Fast minification (default, 20-40x faster than terser)
@@ -18,7 +26,7 @@ export default defineConfig({
         manualChunks: {
           // Vendor chunks
           'react-vendor': ['react', 'react-dom'],
-          'query-vendor': ['@tanstack/react-query', '@tanstack/react-query-persist-client'],
+          'query-vendor': ['@tanstack/react-query'],
           'chart-vendor': ['recharts'],
           'pdf-vendor': ['jspdf'],
         },
@@ -64,6 +72,10 @@ export default defineConfig({
       'recharts',
       'jspdf',
     ],
+    exclude: [
+      '@tanstack/react-query-persist-client',
+    ],
+    force: true, // Force re-optimization
   },
 })
 

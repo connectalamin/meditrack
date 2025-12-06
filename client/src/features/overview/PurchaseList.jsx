@@ -889,7 +889,80 @@ const PurchaseList = ({ onBack }) => {
                   </Button>
                 )}
               </div>
-              <div className="overflow-x-auto">
+              
+              {/* Mobile Card Layout */}
+              <div className="md:hidden space-y-3">
+                {getNormalMedicines().map((item) => (
+                  <div key={item.id} className="border border-slate-200 dark:border-[#27335D] rounded-lg p-4 bg-slate-50/50 dark:bg-[#111725]">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-900 dark:text-[#F8FAFC]">
+                          {item.medicationName}
+                        </p>
+                        {item.strength && (
+                          <p className="text-xs text-slate-500 dark:text-[#94a3b8] mt-0.5">{item.strength}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 ml-2">
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleEdit(item)}
+                          className="p-1.5"
+                          title="Edit"
+                        >
+                          <Edit size={16} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => setDeleteConfirm({ isOpen: true, id: item.id, name: item.medicationName })}
+                          className="p-1.5 text-red-600 hover:text-red-700"
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Quantity</p>
+                        <p className="font-medium text-slate-900 dark:text-[#F8FAFC]">{item.quantity}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Price</p>
+                        <p className="font-medium text-slate-900 dark:text-[#F8FAFC]">{item.price.toLocaleString()} BDT</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Discount</p>
+                        {item.discount > 0 ? (
+                          <p className="font-medium text-red-600 dark:text-red-400">{item.discount.toFixed(1)}%</p>
+                        ) : (
+                          <p className="font-medium text-slate-400 dark:text-slate-500">-</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Total Cost</p>
+                        {item.discount > 0 ? (
+                          <div>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 line-through">
+                              {item.subtotal.toLocaleString()} BDT
+                            </p>
+                            <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                              {(item.cost || 0).toLocaleString()} BDT
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="font-bold text-slate-900 dark:text-[#F8FAFC]">
+                            {(item.cost || 0).toLocaleString()} BDT
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table Layout */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-xs text-slate-500 dark:text-[#94a3b8] uppercase bg-slate-50 dark:bg-[#111725]">
                     <tr>
@@ -977,7 +1050,81 @@ const PurchaseList = ({ onBack }) => {
           {includeMonthly && getMonthlyMedicines().length > 0 && (
             <Card>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-[#F8FAFC] mb-4">Monthly Medicines</h3>
-              <div className="overflow-x-auto">
+              
+              {/* Mobile Card Layout */}
+              <div className="md:hidden space-y-3">
+                {getMonthlyMedicines().map((item) => (
+                  <div key={item.id} className="border border-slate-200 dark:border-[#27335D] rounded-lg p-4 bg-slate-50/50 dark:bg-[#111725]">
+                    <div className="mb-3">
+                      <p className="font-semibold text-slate-900 dark:text-[#F8FAFC]">
+                        {item.medicationName}
+                      </p>
+                      {item.strength && (
+                        <p className="text-xs text-slate-500 dark:text-[#94a3b8] mt-0.5">{item.strength}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Member:</span>
+                        <span className="font-medium text-slate-900 dark:text-[#F8FAFC]">{item.memberName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Schedule:</span>
+                        <span className="font-medium text-slate-900 dark:text-[#F8FAFC]">{item.dosage} tablet(s) × {item.frequency}/day</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Monthly Qty:</span>
+                        <span className="font-medium text-slate-900 dark:text-[#F8FAFC]">{item.monthly}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Packs:</span>
+                        <Badge variant="warning">{item.packs} packs</Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Discount (%):</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={item.discount || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setMonthlyMedicineDiscounts(prev => ({
+                              ...prev,
+                              [item.id]: value ? parseFloat(value) : 0
+                            }));
+                          }}
+                          className="w-24 px-2 py-1 text-sm bg-white dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="pt-2 border-t border-slate-200 dark:border-[#27335D]">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Cost:</span>
+                          {item.discount > 0 ? (
+                            <div className="text-right">
+                              <p className="text-xs text-slate-400 dark:text-slate-500 line-through">
+                                {item.subtotal.toLocaleString()} BDT
+                              </p>
+                              <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {(item.cost || 0).toLocaleString()} BDT
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="font-bold text-slate-900 dark:text-[#F8FAFC]">
+                              {(item.cost || 0).toLocaleString()} BDT
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table Layout */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-xs text-slate-500 dark:text-[#94a3b8] uppercase bg-slate-50 dark:bg-[#111725]">
                     <tr>

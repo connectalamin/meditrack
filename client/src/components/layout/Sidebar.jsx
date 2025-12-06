@@ -46,14 +46,14 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen, onSignO
         />
       )}
       
-      <aside className={`${sidebarOpen ? 'w-64 translate-x-0' : '-translate-x-full md:translate-x-0 w-20'} bg-white dark:bg-[#111725] border-r border-slate-200 dark:border-[#27335D] transition-all duration-300 flex flex-col fixed md:relative z-40 h-full shadow-lg dark:shadow-none`}>
-        <div className="p-4 md:p-6 flex items-center gap-3 border-b border-slate-200 dark:border-[#27335D]">
+      <aside className={`${sidebarOpen ? 'w-64 translate-x-0' : '-translate-x-full md:translate-x-0 md:w-20'} bg-white dark:bg-[#111725] border-r border-slate-200 dark:border-[#27335D] transition-all duration-300 flex flex-col fixed md:relative z-40 h-full shadow-lg dark:shadow-none overflow-hidden`}>
+        <div className="p-4 md:p-6 flex items-center gap-3 border-b border-slate-200 dark:border-[#27335D] shrink-0">
         <div className="h-8 w-8 rounded-lg bg-emerald-500 dark:bg-[#34D399] flex items-center justify-center shrink-0 shadow-sm">
           <Activity className="h-5 w-5 text-white dark:text-[#111725]" />
         </div>
           <span className={`font-bold text-xl tracking-tight transition-opacity duration-200 text-slate-900 dark:text-[#F8FAFC] ${!sidebarOpen && 'opacity-0 hidden md:block'}`}>MediTrack</span>
       </div>
-        <nav className="flex-1 py-4 md:py-6 px-2 md:px-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-4 md:py-6 px-2 md:px-3 space-y-1 overflow-y-auto overflow-x-hidden">
         {navItems.map((item) => (
           <button 
             key={item.id} 
@@ -65,7 +65,7 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen, onSignO
           </button>
         ))}
       </nav>
-        <div className="p-2 md:p-3 border-t border-slate-200 dark:border-[#27335D]">
+        <div className="p-2 md:p-3 border-t border-slate-200 dark:border-[#27335D] shrink-0">
         <button 
           onClick={onSignOut} 
           className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-red-500 hover:bg-red-50 dark:text-[#ef4444] dark:hover:bg-[#ef4444]/10 transition-colors"

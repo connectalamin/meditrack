@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronDown, Plus, Stethoscope, Activity, FileText, ScrollText, ImageIcon, Trash2, Edit, ArrowUpDown, Info, X, Download } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
@@ -12,7 +12,8 @@ import {
   useCreatePlan,
   useUpdatePlan,
   useDeletePlan,
-  useUpdateFamilyMember
+  useUpdateFamilyMember,
+  useDeleteReport
 } from '../../hooks/useData';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -45,6 +46,7 @@ const FamilyMemberDetails = ({ member, onBack }) => {
   const updatePlan = useUpdatePlan();
   const deletePlan = useDeletePlan();
   const updateFamilyMember = useUpdateFamilyMember();
+  const deleteReport = useDeleteReport();
   
   const memberReports = reports.filter(r => r.familyMemberId === member.id);
   const [subTab, setSubTab] = useState('vitals');
@@ -58,9 +60,19 @@ const FamilyMemberDetails = ({ member, onBack }) => {
   const [doctorDate, setDoctorDate] = useState(member.lastDoctorVisit || '');
   const [deleteHealthDataConfirm, setDeleteHealthDataConfirm] = useState({ isOpen: false, memberId: null, dataId: null, type: '', date: '' });
   const [deletePlanConfirm, setDeletePlanConfirm] = useState({ isOpen: false, memberId: null, planId: null, medicationName: '' });
+  const [deleteReportConfirm, setDeleteReportConfirm] = useState({ isOpen: false, reportId: null, reportTitle: '' });
   const [displayUnits, setDisplayUnits] = useState({}); // Track display unit for each metric type
   const [showRangesModal, setShowRangesModal] = useState({ type: null, unit: null });
   const [editingDataId, setEditingDataId] = useState(null);
+  
+  // Pagination states for documents
+  const [docCurrentPage, setDocCurrentPage] = useState(1);
+  const [docItemsPerPage] = useState(10);
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setDocCurrentPage(1);
+  }, [docFilter, docSortBy]);
 
   const metricTypes = useMemo(() => {
     const predefinedTypes = getPredefinedMetricTypes(); // Blood Pressure, Glucose, Hemoglobin
@@ -208,6 +220,21 @@ const FamilyMemberDetails = ({ member, onBack }) => {
     setDeletePlanConfirm({ isOpen: false, memberId: null, planId: null, medicationName: '' });
   };
 
+  const handleDeleteReportClick = (reportId, reportTitle) => {
+    setDeleteReportConfirm({ isOpen: true, reportId, reportTitle });
+  };
+
+  const handleDeleteReportConfirm = async () => {
+    if (deleteReportConfirm.reportId) {
+      try {
+        await deleteReport.mutateAsync(deleteReportConfirm.reportId);
+      } catch (error) {
+        console.error('Failed to delete report:', error);
+      }
+    }
+    setDeleteReportConfirm({ isOpen: false, reportId: null, reportTitle: '' });
+  };
+
   const calculateCost = (plan) => {
     const daily = plan.dosage * plan.frequency;
     const monthly = daily * 30;
@@ -238,6 +265,12 @@ const FamilyMemberDetails = ({ member, onBack }) => {
     
     return filtered;
   }, [memberReports, docFilter, docSortBy]);
+  
+  // Pagination calculations for documents
+  const docTotalPages = Math.ceil(filteredDocs.length / docItemsPerPage);
+  const docStartIndex = (docCurrentPage - 1) * docItemsPerPage;
+  const docEndIndex = docStartIndex + docItemsPerPage;
+  const paginatedDocs = filteredDocs.slice(docStartIndex, docEndIndex);
 
   const generateChartData = (type) => {
     const displayUnit = displayUnits[type] || getDefaultUnit(type) || null;
@@ -979,7 +1012,60 @@ const FamilyMemberDetails = ({ member, onBack }) => {
             </div>
           )}
 
-          <div className="overflow-x-auto">
+          {/* Mobile Card Layout */}
+          <div className="md:hidden space-y-3">
+            {plans.map(plan => {
+              const { monthly, packs, cost } = calculateCost(plan);
+              return (
+                <div key={plan.id} className="border border-slate-200 dark:border-[#27335D] rounded-lg p-4 bg-slate-50/50 dark:bg-[#111725]">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <p className="font-semibold text-slate-900 dark:text-[#F8FAFC] mb-1">
+                        {plan.medicationName}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
+                        {plan.dosage} tablet(s) × {plan.frequency}/day
+                      </p>
+                    </div>
+                    <div className="flex gap-2 ml-2">
+                      <button
+                        onClick={() => handleEditPlan(plan)}
+                        className="text-slate-400 hover:text-emerald-500 transition-colors"
+                        title="Edit"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePlanClick(plan.id, plan.medicationName)}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Monthly Qty</p>
+                      <p className="font-medium text-slate-900 dark:text-[#F8FAFC]">{monthly}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Packs Needed</p>
+                      <Badge variant="warning">{packs} packs</Badge>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Est. Cost</p>
+                      <p className="font-bold text-slate-900 dark:text-[#F8FAFC]">{cost} BDT</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {plans.length === 0 && <p className="text-center text-slate-500 py-8">No medicines added to monthly plan yet.</p>}
+          </div>
+
+          {/* Desktop Table Layout */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-slate-500 dark:text-[#94a3b8] uppercase bg-slate-50 dark:bg-[#111725]">
                 <tr>
@@ -1070,8 +1156,12 @@ const FamilyMemberDetails = ({ member, onBack }) => {
               <p className="text-xs text-slate-400">Go to the main 'Documents' tab to upload and assign.</p>
             </div>
           ) : (
+            <>
+              <div className="text-xs text-slate-500 dark:text-[#94a3b8] mb-2">
+                Showing {filteredDocs.length === 0 ? 0 : docStartIndex + 1}-{Math.min(docEndIndex, filteredDocs.length)} of {filteredDocs.length} {docFilter.toLowerCase()}(s)
+              </div>
             <div className="grid gap-3">
-              {filteredDocs.map(report => (
+                {paginatedDocs.map(report => (
                 <div key={report.id} className="flex flex-col sm:flex-row sm:items-start gap-3 p-4 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg">
                   <div className="flex items-start gap-4 min-w-0 flex-1">
                     {report.type === 'Scanned Image' && report.title.startsWith('Extracted') ? (
@@ -1098,9 +1188,73 @@ const FamilyMemberDetails = ({ member, onBack }) => {
                       </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2 sm:ml-auto">
+                    <button
+                      onClick={() => handleDeleteReportClick(report.id, report.title)}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
               ))}
+              </div>
+              
+              {/* Pagination Controls */}
+              {docTotalPages > 1 && (
+                <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-200 dark:border-[#27335D]">
+                  <div className="text-sm text-slate-500 dark:text-[#94a3b8]">
+                    Page {docCurrentPage} of {docTotalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setDocCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={docCurrentPage === 1}
+                      className="px-3 py-1.5 text-xs"
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, docTotalPages) }, (_, i) => {
+                        let pageNum;
+                        if (docTotalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (docCurrentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (docCurrentPage >= docTotalPages - 2) {
+                          pageNum = docTotalPages - 4 + i;
+                        } else {
+                          pageNum = docCurrentPage - 2 + i;
+                        }
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setDocCurrentPage(pageNum)}
+                            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                              docCurrentPage === pageNum
+                                ? 'bg-emerald-500 text-white dark:bg-[#34D399] dark:text-[#111725] font-medium'
+                                : 'bg-white dark:bg-[#1B2430] border border-slate-300 dark:border-[#27335D] text-slate-700 dark:text-[#F8FAFC] hover:bg-slate-50 dark:hover:bg-[#27335D]'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setDocCurrentPage(prev => Math.min(docTotalPages, prev + 1))}
+                      disabled={docCurrentPage === docTotalPages}
+                      className="px-3 py-1.5 text-xs"
+                    >
+                      Next
+                    </Button>
+                  </div>
             </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -1121,6 +1275,16 @@ const FamilyMemberDetails = ({ member, onBack }) => {
         onConfirm={handleDeletePlanConfirm}
         title="Delete Medication Plan"
         message={`Are you sure you want to remove "${deletePlanConfirm.medicationName}" from the medication plan? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      <ConfirmModal
+        isOpen={deleteReportConfirm.isOpen}
+        onClose={() => setDeleteReportConfirm({ isOpen: false, reportId: null, reportTitle: '' })}
+        onConfirm={handleDeleteReportConfirm}
+        title="Delete Document"
+        message={`Are you sure you want to delete "${deleteReportConfirm.reportTitle}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
       />
