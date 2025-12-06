@@ -1054,13 +1054,26 @@ const FamilyMemberDetails = ({ member, onBack }) => {
                     </div>
                     <div className="col-span-2">
                       <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Est. Cost</p>
-                      <p className="font-bold text-slate-900 dark:text-[#F8FAFC]">{cost} BDT</p>
+                      <p className="font-bold text-slate-900 dark:text-[#F8FAFC]">{cost.toFixed(2)} BDT</p>
                     </div>
                   </div>
                 </div>
               );
             })}
             {plans.length === 0 && <p className="text-center text-slate-500 py-8">No medicines added to monthly plan yet.</p>}
+            {plans.length > 0 && (
+              <div className="mt-4 pt-4 border-t-2 border-slate-200 dark:border-[#27335D] bg-slate-50 dark:bg-[#111725] rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-[#F8FAFC]">Total Monthly Cost:</span>
+                  <span className="text-xl font-bold text-emerald-600 dark:text-[#34D399]">
+                    {plans.reduce((total, plan) => {
+                      const { cost } = calculateCost(plan);
+                      return total + cost;
+                    }, 0).toFixed(2)} BDT
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Desktop Table Layout */}
@@ -1085,7 +1098,7 @@ const FamilyMemberDetails = ({ member, onBack }) => {
                       <td className="px-4 py-3 text-slate-500 dark:text-[#94a3b8]">{plan.dosage % 1 === 0 ? plan.dosage : plan.dosage.toFixed(1)} tablet(s) x {plan.frequency}/day</td>
                       <td className="px-4 py-3 text-slate-900 dark:text-[#F8FAFC]">{monthly}</td>
                       <td className="px-4 py-3"><Badge variant="warning">{packs} packs</Badge></td>
-                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-[#F8FAFC]">{cost} BDT</td>
+                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-[#F8FAFC]">{cost.toFixed(2)} BDT</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
@@ -1108,6 +1121,22 @@ const FamilyMemberDetails = ({ member, onBack }) => {
                   );
                 })}
               </tbody>
+              {plans.length > 0 && (
+                <tfoot className="bg-slate-50 dark:bg-[#111725] border-t-2 border-slate-200 dark:border-[#27335D]">
+                  <tr>
+                    <td colSpan="4" className="px-4 py-4 text-right font-semibold text-slate-900 dark:text-[#F8FAFC]">
+                      Total Monthly Cost:
+                    </td>
+                    <td className="px-4 py-4 font-bold text-lg text-emerald-600 dark:text-[#34D399]">
+                      {plans.reduce((total, plan) => {
+                        const { cost } = calculateCost(plan);
+                        return total + cost;
+                      }, 0).toFixed(2)} BDT
+                    </td>
+                    <td className="px-4 py-4"></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
             {plans.length === 0 && <p className="text-center text-slate-500 py-8">No medicines added to monthly plan yet.</p>}
           </div>
