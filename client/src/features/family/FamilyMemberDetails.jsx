@@ -20,6 +20,7 @@ import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import TimePicker from '../../components/ui/TimePicker';
+import Select from '../../components/ui/Select';
 import { pdfAPI } from '../../utils/api';
 import {
   getMetricConfig,
@@ -953,17 +954,20 @@ const FamilyMemberDetails = ({ member, onBack }) => {
               )}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Select Medicine</label>
-                                <select 
-                    className="w-full bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-[#F8FAFC]"
+                  <Select
+                    label="Select Medicine"
                     value={newPlan.medId}
-                    onChange={e => setNewPlan({...newPlan, medId: e.target.value})}
+                    onChange={(value) => setNewPlan({...newPlan, medId: value})}
+                    placeholder="Select from Database..."
                     disabled={!!editingPlanId}
-                    size={Math.min(7, medications.length + 1)}
-                  >
-                    <option value="">Select from Database...</option>
-                    {medications.map(m => <option key={m.id} value={m.id}>{m.name} ({m.strength})</option>)}
-                  </select>
+                    options={[
+                      { value: '', label: 'Select from Database...' },
+                      ...medications.map(m => ({
+                        value: m.id,
+                        label: `${m.name}${m.strength ? ` (${m.strength})` : ''}`
+                      }))
+                    ]}
+                  />
                 </div>
                 <div><Input label="Dose (Qty)" type="number" value={newPlan.dosage} onChange={e => setNewPlan({...newPlan, dosage: e.target.value})} className="mb-0" /></div>
                 <div><Input label="Freq (Daily)" type="number" value={newPlan.frequency} onChange={e => setNewPlan({...newPlan, frequency: e.target.value})} className="mb-0" /></div>

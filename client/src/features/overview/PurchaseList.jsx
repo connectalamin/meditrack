@@ -17,6 +17,7 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Input from '../../components/ui/Input';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import Select from '../../components/ui/Select';
 
 const PurchaseList = ({ onBack }) => {
   const [textCopied, setTextCopied] = useState(false);
@@ -187,7 +188,7 @@ const PurchaseList = ({ onBack }) => {
       const discount = item.discount || 0;
       const discountAmount = discount ? subtotal * (discount / 100) : 0;
       // Use totalCost from database (already includes discount) as final cost
-      const finalCost = item.totalCost;
+      const finalCost = item.totalCost || (subtotal - discountAmount);
       
       return {
         id: item.id,
@@ -781,20 +782,19 @@ const PurchaseList = ({ onBack }) => {
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-500 dark:text-[#94a3b8] mb-1.5">
-                Select from Database (Optional)
-              </label>
-              <select
-                className="w-full bg-white dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded-lg px-4 py-2.5 text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              <Select
+                label="Select from Database (Optional)"
                 value={formData.medicationId}
-                onChange={(e) => handleMedicationSelect(e.target.value)}
-                size={Math.min(7, medications.length + 1)}
-              >
-                <option value="">Select from Database...</option>
-                {medications.map(m => (
-                  <option key={m.id} value={m.id}>{m.name} {m.strength && `(${m.strength})`}</option>
-                ))}
-              </select>
+                onChange={(value) => handleMedicationSelect(value)}
+                placeholder="Select from Database..."
+                options={[
+                  { value: '', label: 'Select from Database...' },
+                  ...medications.map(m => ({
+                    value: m.id,
+                    label: `${m.name}${m.strength ? ` (${m.strength})` : ''}`
+                  }))
+                ]}
+              />
             </div>
             <Input
               label="Medicine Name"
@@ -936,12 +936,12 @@ const PurchaseList = ({ onBack }) => {
                                 {item.subtotal.toLocaleString()} BDT
                               </p>
                               <p className="font-bold text-emerald-600 dark:text-emerald-400">
-                                {item.cost.toLocaleString()} BDT
+                                {(item.cost || 0).toLocaleString()} BDT
                               </p>
                             </div>
                           ) : (
                             <p className="font-bold text-slate-900 dark:text-[#F8FAFC]">
-                              {item.cost.toLocaleString()} BDT
+                              {(item.cost || 0).toLocaleString()} BDT
                             </p>
                           )}
                         </td>
@@ -1040,12 +1040,12 @@ const PurchaseList = ({ onBack }) => {
                                 {item.subtotal.toLocaleString()} BDT
                               </p>
                               <p className="font-bold text-emerald-600 dark:text-emerald-400">
-                                {item.cost.toLocaleString()} BDT
+                                {(item.cost || 0).toLocaleString()} BDT
                               </p>
                             </div>
                           ) : (
                             <p className="font-bold text-slate-900 dark:text-[#F8FAFC]">
-                              {item.cost.toLocaleString()} BDT
+                              {(item.cost || 0).toLocaleString()} BDT
                             </p>
                           )}
                         </td>

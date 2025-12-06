@@ -81,6 +81,99 @@ const Badge = ({ children, variant = 'default' }) => {
   );
 };
 
+const Select = ({ value, onChange, options = [], placeholder = "Select...", className = "", disabled = false, label = "" }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const containerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    // Use a small timeout to ensure the event listener is added after the DOM is updated
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const selectedOption = options.find(opt => opt.value === value);
+  const displayText = selectedOption ? selectedOption.label : placeholder;
+
+  const handleSelect = (optionValue) => {
+    onChange(optionValue);
+    setIsOpen(false);
+  };
+
+  // Max height for 5 items (approximately 40px per item)
+  const maxHeight = 5 * 40; // 200px for 5 items
+
+  return (
+    <div className={`relative ${className}`} ref={containerRef}>
+      {label && (
+        <label className="block text-xs font-medium text-slate-500 dark:text-[#94a3b8] mb-1">
+          {label}
+        </label>
+      )}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
+          className={`w-full bg-white dark:bg-[#111725] border-2 border-slate-300 dark:border-slate-500 rounded-lg px-3 py-2 pr-10 text-xs text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 dark:focus:ring-[#34D399] transition-all cursor-pointer hover:border-slate-400 dark:hover:border-slate-400 shadow-sm text-left ${
+            disabled ? 'opacity-50 cursor-not-allowed' : ''
+          } ${!selectedOption ? 'text-slate-400 dark:text-slate-500' : ''}`}
+        >
+          {displayText}
+        </button>
+        <ChevronDown 
+          className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500 pointer-events-none transition-transform ${
+            isOpen ? 'rotate-180' : ''
+          }`} 
+        />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1B2430] border-2 border-slate-300 dark:border-slate-500 rounded-lg shadow-lg overflow-hidden">
+          <div 
+            className="overflow-y-auto"
+            style={{ maxHeight: `${maxHeight}px` }}
+          >
+            {options.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 text-center">
+                No options available
+              </div>
+            ) : (
+              options.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleSelect(option.value)}
+                  className={`w-full px-3 py-2 text-xs text-left transition-colors ${
+                    value === option.value
+                      ? 'bg-emerald-500 text-white dark:bg-[#34D399] dark:text-[#111725] font-medium'
+                      : 'text-slate-700 dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-[#27335D]'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // 2. Main Application Structure
 export default function MediTrackApp() {
   const [user, setUser] = useState(null);
@@ -1008,16 +1101,19 @@ const FamilyMemberDetails = ({ user, member, onBack }) => {
                         <div className="mb-6 p-4 bg-slate-50 dark:bg-[#111725] rounded-lg border border-slate-200 dark:border-[#27335D]">
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                                 <div className="md:col-span-2">
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">Select Medicine</label>
-                                    <select 
-                                        className="w-full bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-[#F8FAFC]"
+                                    <Select
+                                        label="Select Medicine"
                                         value={newPlan.medId}
-                                        onChange={e => setNewPlan({...newPlan, medId: e.target.value})}
-                                        size={Math.min(7, globalMeds.length + 1)}
-                                    >
-                                        <option value="">Select from Database...</option>
-                                        {globalMeds.map(m => <option key={m.id} value={m.id}>{m.name} ({m.strength})</option>)}
-                                    </select>
+                                        onChange={(value) => setNewPlan({...newPlan, medId: value})}
+                                        placeholder="Select from Database..."
+                                        options={[
+                                            { value: '', label: 'Select from Database...' },
+                                            ...globalMeds.map(m => ({
+                                                value: m.id,
+                                                label: `${m.name}${m.strength ? ` (${m.strength})` : ''}`
+                                            }))
+                                        ]}
+                                    />
                                 </div>
                                 <div><Input label="Dose (Qty)" type="number" value={newPlan.dosage} onChange={e => setNewPlan({...newPlan, dosage: e.target.value})} className="mb-0" /></div>
                                 <div><Input label="Freq (Daily)" type="number" value={newPlan.frequency} onChange={e => setNewPlan({...newPlan, frequency: e.target.value})} className="mb-0" /></div>
