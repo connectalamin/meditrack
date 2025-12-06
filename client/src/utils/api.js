@@ -507,3 +507,116 @@ export const purchaseListLogsAPI = {
   },
 };
 
+// PDF API - Download PDF from server
+export const pdfAPI = {
+  downloadMetricPDF: async (familyMemberId, type) => {
+    const { accessToken, deviceToken } = getTokens();
+    
+    const headers = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    if (deviceToken) {
+      headers['x-device-token'] = deviceToken;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/pdf/health-data/${familyMemberId}/metric/${encodeURIComponent(type)}`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (response.status === 401 && accessToken) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        headers['Authorization'] = `Bearer ${localStorage.getItem('accessToken')}`;
+        const retryResponse = await fetch(`${API_BASE_URL}/pdf/health-data/${familyMemberId}/metric/${encodeURIComponent(type)}`, {
+          method: 'GET',
+          headers,
+        });
+        if (!retryResponse.ok) {
+          const error = await retryResponse.json().catch(() => ({ message: 'PDF generation failed' }));
+          throw new Error(error.message || 'PDF generation failed');
+        }
+        return retryResponse;
+      } else {
+        clearTokens();
+        throw new Error('Session expired');
+      }
+    }
+
+    if (!response.ok) {
+      // Check if response is JSON (error) or PDF (should be ok)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json().catch(() => ({ message: 'PDF generation failed' }));
+        throw new Error(error.message || 'PDF generation failed');
+      } else {
+        throw new Error(`PDF generation failed with status ${response.status}`);
+      }
+    }
+
+    // Verify it's actually a PDF
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/pdf')) {
+      throw new Error('Server did not return a valid PDF file');
+    }
+
+    return response;
+  },
+
+  downloadAllVitalsPDF: async (familyMemberId) => {
+    const { accessToken, deviceToken } = getTokens();
+    
+    const headers = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    if (deviceToken) {
+      headers['x-device-token'] = deviceToken;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/pdf/health-data/${familyMemberId}/all`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (response.status === 401 && accessToken) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        headers['Authorization'] = `Bearer ${localStorage.getItem('accessToken')}`;
+        const retryResponse = await fetch(`${API_BASE_URL}/pdf/health-data/${familyMemberId}/all`, {
+          method: 'GET',
+          headers,
+        });
+        if (!retryResponse.ok) {
+          const error = await retryResponse.json().catch(() => ({ message: 'PDF generation failed' }));
+          throw new Error(error.message || 'PDF generation failed');
+        }
+        return retryResponse;
+      } else {
+        clearTokens();
+        throw new Error('Session expired');
+      }
+    }
+
+    if (!response.ok) {
+      // Check if response is JSON (error) or PDF (should be ok)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json().catch(() => ({ message: 'PDF generation failed' }));
+        throw new Error(error.message || 'PDF generation failed');
+      } else {
+        throw new Error(`PDF generation failed with status ${response.status}`);
+      }
+    }
+
+    // Verify it's actually a PDF
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/pdf')) {
+      throw new Error('Server did not return a valid PDF file');
+    }
+
+    return response;
+  },
+};
+

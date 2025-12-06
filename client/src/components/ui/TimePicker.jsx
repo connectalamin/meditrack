@@ -3,9 +3,8 @@ import { Clock } from 'lucide-react';
 
 const TimePicker = ({ value, onChange, placeholder = "Select time", className = "" }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedHour, setSelectedHour] = useState(12);
+  const [selectedHour, setSelectedHour] = useState(0);
   const [selectedMinute, setSelectedMinute] = useState(0);
-  const [isAM, setIsAM] = useState(true);
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -14,25 +13,11 @@ const TimePicker = ({ value, onChange, placeholder = "Select time", className = 
       const hour24 = parseInt(h) || 0;
       const minute = parseInt(m) || 0;
       
-      // Convert 24-hour to 12-hour format
-      if (hour24 === 0) {
-        setSelectedHour(12);
-        setIsAM(true);
-      } else if (hour24 === 12) {
-        setSelectedHour(12);
-        setIsAM(false);
-      } else if (hour24 > 12) {
-        setSelectedHour(hour24 - 12);
-        setIsAM(false);
-      } else {
-        setSelectedHour(hour24);
-        setIsAM(true);
-      }
+      setSelectedHour(hour24);
       setSelectedMinute(minute);
     } else {
-      setSelectedHour(12);
+      setSelectedHour(0);
       setSelectedMinute(0);
-      setIsAM(true);
     }
   }, [value]);
 
@@ -59,31 +44,19 @@ const TimePicker = ({ value, onChange, placeholder = "Select time", className = 
     }
   };
 
-  const updateTime = (hour12, minute, am) => {
-    // Convert 12-hour to 24-hour format
-    let hour24;
-    if (hour12 === 12) {
-      hour24 = am ? 0 : 12;
-    } else {
-      hour24 = am ? hour12 : hour12 + 12;
-    }
+  const updateTime = (hour24, minute) => {
     const timeString = `${hour24.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
     onChange(timeString);
   };
 
   const handleHourChange = (hour) => {
     setSelectedHour(hour);
-    updateTime(hour, selectedMinute, isAM);
+    updateTime(hour, selectedMinute);
   };
 
   const handleMinuteChange = (minute) => {
     setSelectedMinute(minute);
-    updateTime(selectedHour, minute, isAM);
-  };
-
-  const handleAMPMChange = (am) => {
-    setIsAM(am);
-    updateTime(selectedHour, selectedMinute, am);
+    updateTime(selectedHour, minute);
   };
 
   const handleConfirm = () => {
@@ -93,8 +66,8 @@ const TimePicker = ({ value, onChange, placeholder = "Select time", className = 
 
   const displayValue = value || '';
 
-  // Generate hour and minute options (12-hour format)
-  const hours = Array.from({ length: 12 }, (_, i) => i + 1);
+  // Generate hour and minute options (24-hour format)
+  const hours = Array.from({ length: 24 }, (_, i) => i);
   const minutes = Array.from({ length: 60 }, (_, i) => i);
 
   return (
@@ -128,7 +101,7 @@ const TimePicker = ({ value, onChange, placeholder = "Select time", className = 
               <div className="mb-6">
                 <div className="text-center mb-2">
                   <div className="text-xs font-medium text-slate-500 dark:text-[#94a3b8] mb-2">
-                    Select Time
+                    Select Time (24-hour format)
                   </div>
                   <div className="flex items-center justify-center gap-2">
                     <div className="text-5xl font-bold text-slate-900 dark:text-[#F8FAFC] tabular-nums">
@@ -139,28 +112,6 @@ const TimePicker = ({ value, onChange, placeholder = "Select time", className = 
                     </div>
                     <div className="text-5xl font-bold text-slate-900 dark:text-[#F8FAFC] tabular-nums">
                       {selectedMinute.toString().padStart(2, '0')}
-                    </div>
-                    <div className="ml-2 flex flex-col gap-1">
-                      <button
-                        onClick={() => handleAMPMChange(true)}
-                        className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-                          isAM
-                            ? 'bg-emerald-500 text-white dark:bg-[#34D399] dark:text-[#111725]'
-                            : 'bg-slate-100 text-slate-600 dark:bg-[#27335D] dark:text-[#94a3b8] hover:bg-slate-200 dark:hover:bg-[#344275]'
-                        }`}
-                      >
-                        AM
-                      </button>
-                      <button
-                        onClick={() => handleAMPMChange(false)}
-                        className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-                          !isAM
-                            ? 'bg-emerald-500 text-white dark:bg-[#34D399] dark:text-[#111725]'
-                            : 'bg-slate-100 text-slate-600 dark:bg-[#27335D] dark:text-[#94a3b8] hover:bg-slate-200 dark:hover:bg-[#344275]'
-                        }`}
-                      >
-                        PM
-                      </button>
                     </div>
                   </div>
                 </div>

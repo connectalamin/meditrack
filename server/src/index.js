@@ -16,6 +16,7 @@ import planRoutes from './routes/plans.js';
 import purchaseListRoutes from './routes/purchaseList.js';
 import ocrRoutes from './routes/ocr.js';
 import analyticsRoutes from './routes/analytics.js';
+import pdfRoutes from './routes/pdf.js';
 
 dotenv.config();
 
@@ -171,6 +172,7 @@ app.use('/api/plans', planRoutes);
 app.use('/api/purchase-list', purchaseListRoutes);
 app.use('/api/ocr', ocrRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/pdf', pdfRoutes);
 
 // 404 handler
 app.use((req, res) => {

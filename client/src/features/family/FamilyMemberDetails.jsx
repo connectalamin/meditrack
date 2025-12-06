@@ -20,6 +20,7 @@ import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import TimePicker from '../../components/ui/TimePicker';
+import { pdfAPI } from '../../utils/api';
 import {
   getMetricConfig,
   getDefaultUnit,
@@ -321,507 +322,117 @@ const FamilyMemberDetails = ({ member, onBack }) => {
   // Download individual metric as PDF
   const downloadMetricAsPDF = async (type) => {
     try {
-      const { default: jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
+      const response = await pdfAPI.downloadMetricPDF(member.id, type);
       
-      const metricData = healthData
-        .filter(d => d.type === type)
-        .sort((a, b) => new Date(b.date + (b.time ? `T${b.time}` : '')) - new Date(a.date + (a.time ? `T${a.time}` : '')));
-      
-      if (metricData.length === 0) {
-        alert('No data available for this metric.');
-        return;
-      }
-
-      const displayUnit = displayUnits[type] || getDefaultUnit(type) || metricData[0]?.unit || '';
-      const config = getMetricConfig(type);
-      const hasConversion = hasUnitConversion(type);
-
-      // Calculate time-based averages
-      const timeAverages = calculateTimeBasedAverages(metricData, type, displayUnit, hasConversion);
-
-      // Professional Header with Box
-      doc.setDrawColor(0, 0, 0);
-      doc.setFillColor(245, 247, 250);
-      doc.roundedRect(14, 10, 183, 32, 3, 3, 'FD');
-      
-      doc.setFontSize(16);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(30, 41, 59);
-      doc.text(`${type.toUpperCase()} - VITAL LOG REPORT`, 20, 22);
-      
-      doc.setFontSize(9);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Patient: ${member.name}`, 20, 28);
-      doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, 20, 33);
-      doc.text(`Total Records: ${metricData.length}`, 20, 38);
-      
-      // Time-based Averages Box - Professional Hospital Grade
-      let yPos = 52;
-      doc.setDrawColor(59, 130, 246);
-      doc.setFillColor(239, 246, 255);
-      doc.roundedRect(14, yPos, 183, 20, 3, 3, 'FD');
-      doc.setLineWidth(0.5);
-      doc.roundedRect(14, yPos, 183, 20, 3, 3);
-      
-      doc.setFontSize(8);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(30, 64, 175);
-      doc.text('PERIOD AVERAGES', 20, yPos + 6);
-      
-      doc.setFontSize(8);
-      doc.setTextColor(30, 41, 59);
-      const boxWidth = 183 / 3;
-      const startX = 20;
-      
-      // 1 Week Average
-      doc.setFont(undefined, 'bold');
-      doc.setFontSize(7);
-      doc.text('1 WEEK', startX, yPos + 12);
-      doc.setFont(undefined, 'normal');
-      if (timeAverages.oneWeek.avg) {
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'bold');
-        doc.text(timeAverages.oneWeek.avg, startX, yPos + 17);
-        doc.setFontSize(6);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(100, 116, 139);
-        const unitText = `${displayUnit} (${timeAverages.oneWeek.count})`;
-        if (doc.getTextWidth(unitText) < boxWidth - 4) {
-          doc.text(unitText, startX, yPos + 21);
-        } else {
-          doc.text(displayUnit, startX, yPos + 21);
-        }
-      } else {
-        doc.setFontSize(8);
-        doc.setTextColor(148, 163, 184);
-        doc.text('No data', startX, yPos + 17);
+      // Verify response is OK
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to generate PDF');
       }
       
-      // 1 Month Average
-      doc.setTextColor(30, 41, 59);
-      doc.setFontSize(7);
-      doc.setFont(undefined, 'bold');
-      doc.text('1 MONTH', startX + boxWidth, yPos + 12);
-      doc.setFont(undefined, 'normal');
-      if (timeAverages.oneMonth.avg) {
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'bold');
-        doc.text(timeAverages.oneMonth.avg, startX + boxWidth, yPos + 17);
-        doc.setFontSize(6);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(100, 116, 139);
-        const unitText = `${displayUnit} (${timeAverages.oneMonth.count})`;
-        if (doc.getTextWidth(unitText) < boxWidth - 4) {
-          doc.text(unitText, startX + boxWidth, yPos + 21);
-        } else {
-          doc.text(displayUnit, startX + boxWidth, yPos + 21);
-        }
-      } else {
-        doc.setFontSize(8);
-        doc.setTextColor(148, 163, 184);
-        doc.text('No data', startX + boxWidth, yPos + 17);
-      }
-      
-      // 3 Months Average
-      doc.setTextColor(30, 41, 59);
-      doc.setFontSize(7);
-      doc.setFont(undefined, 'bold');
-      doc.text('3 MONTHS', startX + boxWidth * 2, yPos + 12);
-      doc.setFont(undefined, 'normal');
-      if (timeAverages.threeMonths.avg) {
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'bold');
-        doc.text(timeAverages.threeMonths.avg, startX + boxWidth * 2, yPos + 17);
-        doc.setFontSize(6);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(100, 116, 139);
-        const unitText = `${displayUnit} (${timeAverages.threeMonths.count})`;
-        if (doc.getTextWidth(unitText) < boxWidth - 4) {
-          doc.text(unitText, startX + boxWidth * 2, yPos + 21);
-        } else {
-          doc.text(displayUnit, startX + boxWidth * 2, yPos + 21);
-        }
-      } else {
-        doc.setFontSize(8);
-        doc.setTextColor(148, 163, 184);
-        doc.text('No data', startX + boxWidth * 2, yPos + 17);
-      }
-      
-      yPos = 78;
-      
-      // Table header
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(30, 41, 59);
-      doc.text('Date', 14, yPos);
-      doc.text('Time', 60, yPos);
-      doc.text('Value', 95, yPos);
-      doc.text('Unit', 150, yPos);
-      
-      // Draw line under header
-      doc.setDrawColor(200, 200, 200);
-      doc.line(14, yPos + 2, 197, yPos + 2);
-      yPos += 7;
-      
-      // Table rows
-      doc.setFont(undefined, 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(30, 41, 59);
-      
-      metricData.forEach((record, index) => {
-        if (yPos > 280) {
-          doc.addPage();
-          yPos = 20;
-          // Redraw header on new page
-          doc.setFont(undefined, 'bold');
-          doc.setFontSize(10);
-          doc.setTextColor(30, 41, 59);
-          doc.text('Date', 14, yPos);
-          doc.text('Time', 60, yPos);
-          doc.text('Value', 95, yPos);
-          doc.text('Unit', 150, yPos);
-          doc.setDrawColor(200, 200, 200);
-          doc.line(14, yPos + 2, 197, yPos + 2);
-          yPos += 7;
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(9);
-          doc.setTextColor(30, 41, 59);
-        }
-        
-        const date = new Date(record.date);
-        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        const timeStr = record.time || '-';
-        
-        let displayValue = record.value;
-        if (hasConversion && displayUnit && record.unit && record.unit !== displayUnit) {
-          displayValue = convertValue(record.value, type, record.unit, displayUnit);
-        }
-        
-        // Ensure text fits in columns
-        const maxDateWidth = 45;
-        const maxTimeWidth = 30;
-        const maxValueWidth = 50;
-        const maxUnitWidth = 40;
-        
-        // Truncate if needed
-        let dateDisplay = dateStr;
-        if (doc.getTextWidth(dateDisplay) > maxDateWidth) {
-          dateDisplay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        }
-        
-        let valueDisplay = displayValue.toString();
-        if (doc.getTextWidth(valueDisplay) > maxValueWidth) {
-          valueDisplay = doc.splitTextToSize(valueDisplay, maxValueWidth)[0];
-        }
-        
-        doc.text(dateDisplay, 14, yPos);
-        doc.text(timeStr, 60, yPos);
-        doc.text(valueDisplay, 95, yPos);
-        doc.text(displayUnit || record.unit || '', 150, yPos);
-        
-        yPos += 6;
-      });
-      
-      // Summary at the end
-      if (metricData.length > 1) {
-        yPos += 5;
-        if (yPos > 270) {
-          doc.addPage();
-          yPos = 20;
-        }
-        doc.setFont(undefined, 'bold');
-        doc.setFontSize(10);
-        doc.text('Summary', 14, yPos);
-        yPos += 6;
-        doc.setFont(undefined, 'normal');
-        doc.setFontSize(9);
-        
-        if (type === 'Blood Pressure') {
-          const avgSys = metricData.reduce((sum, r) => {
-            const [sys] = r.value.split('/').map(Number);
-            return sum + (isNaN(sys) ? 0 : sys);
-          }, 0) / metricData.length;
-          const avgDia = metricData.reduce((sum, r) => {
-            const [, dia] = r.value.split('/').map(Number);
-            return sum + (isNaN(dia) ? 0 : dia);
-          }, 0) / metricData.length;
-          doc.text(`Average: ${Math.round(avgSys)}/${Math.round(avgDia)} ${displayUnit || 'mmHg'}`, 14, yPos);
-        } else {
-          const avg = metricData.reduce((sum, r) => {
-            let val = Number(r.value);
-            if (hasConversion && displayUnit && r.unit && r.unit !== displayUnit) {
-              val = parseFloat(convertValue(r.value, type, r.unit, displayUnit)) || val;
-            }
-            return sum + (isNaN(val) ? 0 : val);
-          }, 0) / metricData.length;
-          doc.text(`Average: ${avg.toFixed(2)} ${displayUnit}`, 14, yPos);
+      // Get filename from Content-Disposition header or generate one
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${type.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-vital-log-${new Date().toISOString().split('T')[0]}.pdf`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
         }
       }
       
-      const fileName = `${type.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-vital-log-${new Date().toISOString().split('T')[0]}.pdf`;
-      doc.save(fileName);
+      // Create blob and download
+      const blob = await response.blob();
+      
+      // Validate blob
+      if (!blob || blob.size === 0) {
+        throw new Error('PDF file is empty');
+      }
+      
+      // Check if blob is actually a PDF (first 4 bytes should be %PDF)
+      const arrayBuffer = await blob.slice(0, 4).arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const pdfHeader = String.fromCharCode(...uint8Array);
+      if (pdfHeader !== '%PDF') {
+        throw new Error('Invalid PDF file format');
+      }
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up after a short delay
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('PDF generation failed. Please try again.');
+      alert(error.message || 'PDF generation failed. Please try again.');
     }
   };
 
   // Download all vitals as PDF
   const downloadAllVitalsAsPDF = async () => {
     try {
-      const { default: jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
-      
       if (healthData.length === 0) {
         alert('No health data available to download.');
         return;
       }
 
-      // Professional Header with Box
-      doc.setDrawColor(0, 0, 0);
-      doc.setFillColor(245, 247, 250);
-      doc.roundedRect(14, 10, 183, 32, 3, 3, 'FD');
+      const response = await pdfAPI.downloadAllVitalsPDF(member.id);
       
-      doc.setFontSize(16);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(30, 41, 59);
-      doc.text('VITAL REPORT', 20, 22);
+      // Verify response is OK
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to generate PDF');
+      }
       
-      doc.setFontSize(9);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Patient: ${member.name}`, 20, 28);
-      doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, 20, 33);
-      doc.text(`Total Records: ${healthData.length}`, 20, 38);
+      // Get filename from Content-Disposition header or generate one
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${member.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-vital-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
       
-      let yPos = 52;
+      // Create blob and download
+      const blob = await response.blob();
       
-      // Group by metric type
-      const groupedByType = {};
-      healthData.forEach(record => {
-        if (!groupedByType[record.type]) {
-          groupedByType[record.type] = [];
-        }
-        groupedByType[record.type].push(record);
-      });
+      // Validate blob
+      if (!blob || blob.size === 0) {
+        throw new Error('PDF file is empty');
+      }
       
-      // Sort each group by date/time
-      Object.keys(groupedByType).forEach(type => {
-        groupedByType[type].sort((a, b) => {
-          const dateA = new Date(a.date + (a.time ? `T${a.time}` : ''));
-          const dateB = new Date(b.date + (b.time ? `T${b.time}` : ''));
-          return dateB - dateA;
-        });
-      });
+      // Check if blob is actually a PDF (first 4 bytes should be %PDF)
+      const arrayBuffer = await blob.slice(0, 4).arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const pdfHeader = String.fromCharCode(...uint8Array);
+      if (pdfHeader !== '%PDF') {
+        throw new Error('Invalid PDF file format');
+      }
       
-      // Generate content for each metric type
-      Object.entries(groupedByType).forEach(([type, records], index) => {
-        // Add spacing before each section (except first)
-        if (index > 0) {
-          yPos += 8;
-        }
-        
-        if (yPos > 220) {
-          doc.addPage();
-          yPos = 20;
-        }
-        
-        const displayUnit = displayUnits[type] || getDefaultUnit(type) || records[0]?.unit || '';
-        const config = getMetricConfig(type);
-        const hasConversion = hasUnitConversion(type);
-        
-        // Calculate time-based averages for this metric
-        const timeAverages = calculateTimeBasedAverages(records, type, displayUnit, hasConversion);
-        
-        // Section header with professional styling
-        doc.setDrawColor(59, 130, 246);
-        doc.setFillColor(239, 246, 255);
-        doc.roundedRect(14, yPos - 5, 183, 22, 3, 3, 'FD');
-        doc.setLineWidth(0.5);
-        doc.roundedRect(14, yPos - 5, 183, 22, 3, 3);
-        
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(30, 41, 59);
-        doc.text(`${type.toUpperCase()} (${records.length} record${records.length !== 1 ? 's' : ''})`, 20, yPos + 2);
-        
-        // Time-based averages for this metric
-        doc.setFontSize(7);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(30, 64, 175);
-        doc.text('PERIOD AVERAGES:', 20, yPos + 8);
-        
-        doc.setFontSize(7);
-        doc.setTextColor(30, 41, 59);
-        const boxWidth = 183 / 3;
-        const startX = 20;
-        
-        // 1 Week
-        if (timeAverages.oneWeek.avg) {
-          doc.setFont(undefined, 'bold');
-          doc.text('1W:', startX, yPos + 13);
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(8);
-          doc.text(timeAverages.oneWeek.avg, startX + 7, yPos + 13);
-          doc.setFontSize(6);
-          doc.setTextColor(100, 116, 139);
-          const countText = `(${timeAverages.oneWeek.count})`;
-          if (doc.getTextWidth(countText) < boxWidth - 15) {
-            doc.text(countText, startX + 20, yPos + 13);
-          }
-        }
-        
-        // 1 Month
-        if (timeAverages.oneMonth.avg) {
-          doc.setTextColor(30, 41, 59);
-          doc.setFontSize(7);
-          doc.setFont(undefined, 'bold');
-          doc.text('1M:', startX + boxWidth, yPos + 13);
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(8);
-          doc.text(timeAverages.oneMonth.avg, startX + boxWidth + 7, yPos + 13);
-          doc.setFontSize(6);
-          doc.setTextColor(100, 116, 139);
-          const countText = `(${timeAverages.oneMonth.count})`;
-          if (doc.getTextWidth(countText) < boxWidth - 15) {
-            doc.text(countText, startX + boxWidth + 20, yPos + 13);
-          }
-        }
-        
-        // 3 Months
-        if (timeAverages.threeMonths.avg) {
-          doc.setTextColor(30, 41, 59);
-          doc.setFontSize(7);
-          doc.setFont(undefined, 'bold');
-          doc.text('3M:', startX + boxWidth * 2, yPos + 13);
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(8);
-          doc.text(timeAverages.threeMonths.avg, startX + boxWidth * 2 + 7, yPos + 13);
-          doc.setFontSize(6);
-          doc.setTextColor(100, 116, 139);
-          const countText = `(${timeAverages.threeMonths.count})`;
-          if (doc.getTextWidth(countText) < boxWidth - 15) {
-            doc.text(countText, startX + boxWidth * 2 + 20, yPos + 13);
-          }
-        }
-        
-        yPos += 25;
-        
-        // Table header
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(30, 41, 59);
-        doc.text('Date', 14, yPos);
-        doc.text('Time', 60, yPos);
-        doc.text('Value', 95, yPos);
-        doc.text('Unit', 150, yPos);
-        doc.setDrawColor(200, 200, 200);
-        doc.line(14, yPos + 2, 197, yPos + 2);
-        yPos += 7;
-        
-        // Table rows
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(30, 41, 59);
-        records.forEach(record => {
-          if (yPos > 280) {
-            doc.addPage();
-            yPos = 20;
-            // Redraw section header
-            doc.setFontSize(11);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(30, 41, 59);
-            doc.text(`${type} (continued)`, 14, yPos);
-            yPos += 8;
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'bold');
-            doc.text('Date', 14, yPos);
-            doc.text('Time', 60, yPos);
-            doc.text('Value', 95, yPos);
-            doc.text('Unit', 150, yPos);
-            doc.setDrawColor(200, 200, 200);
-            doc.line(14, yPos + 2, 197, yPos + 2);
-            yPos += 7;
-            doc.setFont(undefined, 'normal');
-            doc.setTextColor(30, 41, 59);
-          }
-          
-          const date = new Date(record.date);
-          const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-          const timeStr = record.time || '-';
-          
-          let displayValue = record.value;
-          if (hasConversion && displayUnit && record.unit && record.unit !== displayUnit) {
-            displayValue = convertValue(record.value, type, record.unit, displayUnit);
-          }
-          
-          // Ensure text fits in columns
-          const maxDateWidth = 45;
-          const maxTimeWidth = 30;
-          const maxValueWidth = 50;
-          const maxUnitWidth = 40;
-          
-          // Truncate if needed
-          let dateDisplay = dateStr;
-          if (doc.getTextWidth(dateDisplay) > maxDateWidth) {
-            dateDisplay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          }
-          
-          let valueDisplay = displayValue.toString();
-          if (doc.getTextWidth(valueDisplay) > maxValueWidth) {
-            valueDisplay = doc.splitTextToSize(valueDisplay, maxValueWidth)[0];
-          }
-          
-          doc.text(dateDisplay, 14, yPos);
-          doc.text(timeStr, 60, yPos);
-          doc.text(valueDisplay, 95, yPos);
-          doc.text(displayUnit || record.unit || '', 150, yPos);
-          
-          yPos += 6;
-        });
-        
-        // Summary for this metric
-        if (records.length > 1) {
-          yPos += 5;
-          if (yPos > 280) {
-            doc.addPage();
-            yPos = 20;
-          }
-          doc.setFontSize(8);
-          doc.setFont(undefined, 'italic');
-          if (type === 'Blood Pressure') {
-            const avgSys = records.reduce((sum, r) => {
-              const [sys] = r.value.split('/').map(Number);
-              return sum + (isNaN(sys) ? 0 : sys);
-            }, 0) / records.length;
-            const avgDia = records.reduce((sum, r) => {
-              const [, dia] = r.value.split('/').map(Number);
-              return sum + (isNaN(dia) ? 0 : dia);
-            }, 0) / records.length;
-            doc.text(`Average: ${Math.round(avgSys)}/${Math.round(avgDia)} ${displayUnit || 'mmHg'}`, 14, yPos);
-          } else {
-            const avg = records.reduce((sum, r) => {
-              let val = Number(r.value);
-              if (hasConversion && displayUnit && r.unit && r.unit !== displayUnit) {
-                val = parseFloat(convertValue(r.value, type, r.unit, displayUnit)) || val;
-              }
-              return sum + (isNaN(val) ? 0 : val);
-            }, 0) / records.length;
-            doc.text(`Average: ${avg.toFixed(2)} ${displayUnit}`, 14, yPos);
-          }
-          yPos += 10;
-          doc.setFont(undefined, 'normal');
-        } else {
-          yPos += 8;
-        }
-      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
       
-      const fileName = `${member.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-vital-report-${new Date().toISOString().split('T')[0]}.pdf`;
-      doc.save(fileName);
+      // Clean up after a short delay
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('PDF generation failed. Please try again.');
+      alert(error.message || 'PDF generation failed. Please try again.');
     }
   };
 
