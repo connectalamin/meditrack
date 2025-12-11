@@ -32,6 +32,8 @@ const PurchaseList = ({ onBack }) => {
   const [formData, setFormData] = useState({ medicationId: '', medicationName: '', quantity: '', price: '', discount: '' });
   const [globalDiscount, setGlobalDiscount] = useState('');
   const [monthlyMedicineDiscounts, setMonthlyMedicineDiscounts] = useState({});
+  const [monthlyMedicineQuantities, setMonthlyMedicineQuantities] = useState({});
+  const [monthlyMedicinePacks, setMonthlyMedicinePacks] = useState({});
   const [savingLog, setSavingLog] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   
@@ -127,10 +129,13 @@ const PurchaseList = ({ onBack }) => {
   };
 
   // Calculate monthly medicine needs for a plan
-  const calculateCost = (plan) => {
+  const calculateCost = (plan, adjustedMonthly = null, adjustedPacks = null) => {
     const daily = plan.dosage * plan.frequency;
-    const monthly = daily * 30;
-    const packs = Math.ceil(monthly / plan.packSize);
+    const baseMonthly = daily * 30;
+    const monthly = adjustedMonthly !== null ? adjustedMonthly : baseMonthly;
+    
+    // If packs are directly adjusted, use them; otherwise calculate from quantity
+    const packs = adjustedPacks !== null ? adjustedPacks : (monthly / plan.packSize);
     const cost = packs * plan.price;
     return { monthly, packs, cost };
   };
@@ -151,8 +156,13 @@ const PurchaseList = ({ onBack }) => {
       const memberPlans = plans[member.id] || [];
       memberPlans.forEach(plan => {
         const medDetails = getMedicationDetails(plan.medicationId);
-        const { monthly, packs, cost } = calculateCost(plan);
         const itemId = `monthly-${plan.id}`;
+        
+        // Check for adjusted values (priority: packs > quantity > calculated)
+        const adjustedPacks = monthlyMedicinePacks[itemId] !== undefined ? monthlyMedicinePacks[itemId] : null;
+        const adjustedMonthly = monthlyMedicineQuantities[itemId] !== undefined ? monthlyMedicineQuantities[itemId] : null;
+        
+        const { monthly, packs, cost } = calculateCost(plan, adjustedMonthly, adjustedPacks);
         const discount = monthlyMedicineDiscounts[itemId] || 0;
         const subtotal = cost;
         const discountAmount = discount ? subtotal * (discount / 100) : 0;
@@ -174,7 +184,9 @@ const PurchaseList = ({ onBack }) => {
           memberName: member.name,
           memberId: member.id,
           planId: plan.id,
-          medicationId: plan.medicationId
+          medicationId: plan.medicationId,
+          packSize: plan.packSize,
+          price: plan.price
         });
       });
     });
@@ -275,7 +287,7 @@ const PurchaseList = ({ onBack }) => {
           if (item.strength) text += ` (${item.strength})`;
           text += ` - ${item.memberName}\n`;
           text += `   Schedule: ${item.dosage} tablet(s) × ${item.frequency}/day\n`;
-          text += `   Monthly Qty: ${item.monthly} | Packs: ${item.packs}`;
+          text += `   Monthly Qty: ${item.monthly} | Packs: ${item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1)}`;
           if (item.discount > 0) {
             text += ` | Discount: ${item.discount.toFixed(1)}%`;
             text += `\n   Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`;
@@ -461,12 +473,13 @@ const PurchaseList = ({ onBack }) => {
             doc.setFontSize(9);
             doc.text(`Schedule: ${item.dosage} tablet(s) × ${item.frequency}/day`, 20, yPos);
             yPos += 5;
+            const packsDisplay = item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1);
             if (item.discount > 0) {
-              doc.text(`Monthly Qty: ${item.monthly} | Packs: ${item.packs} | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
+              doc.text(`Monthly Qty: ${item.monthly} | Packs: ${packsDisplay} | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
               yPos += 5;
               doc.text(`Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`, 20, yPos);
             } else {
-              doc.text(`Monthly Qty: ${item.monthly} | Packs: ${item.packs} | Cost: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+              doc.text(`Monthly Qty: ${item.monthly} | Packs: ${packsDisplay} | Cost: ${item.cost.toLocaleString()} BDT`, 20, yPos);
             }
             yPos += 8;
           });
@@ -1117,13 +1130,63 @@ const PurchaseList = ({ onBack }) => {
                         <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Schedule:</span>
                         <span className="font-medium text-slate-900 dark:text-[#F8FAFC]">{item.dosage} tablet(s) × {item.frequency}/day</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-center">
                         <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Monthly Qty:</span>
-                        <span className="font-medium text-slate-900 dark:text-[#F8FAFC]">{item.monthly}</span>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={monthlyMedicineQuantities[item.id] !== undefined ? monthlyMedicineQuantities[item.id] : item.monthly}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '') {
+                              setMonthlyMedicineQuantities(prev => {
+                                const newState = { ...prev };
+                                delete newState[item.id];
+                                return newState;
+                              });
+                            } else {
+                              const numValue = parseFloat(value);
+                              setMonthlyMedicineQuantities(prev => ({
+                                ...prev,
+                                [item.id]: numValue
+                              }));
+                              // When quantity changes, recalculate packs (remove pack override)
+                              setMonthlyMedicinePacks(prev => {
+                                const newState = { ...prev };
+                                delete newState[item.id];
+                                return newState;
+                              });
+                            }
+                          }}
+                          className="w-24 px-2 py-1 text-sm bg-white dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                        />
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Packs:</span>
-                        <Badge variant="warning">{item.packs} packs</Badge>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={monthlyMedicinePacks[item.id] !== undefined ? monthlyMedicinePacks[item.id] : item.packs}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '') {
+                              setMonthlyMedicinePacks(prev => {
+                                const newState = { ...prev };
+                                delete newState[item.id];
+                                return newState;
+                              });
+                            } else {
+                              const numValue = parseFloat(value);
+                              setMonthlyMedicinePacks(prev => ({
+                                ...prev,
+                                [item.id]: numValue
+                              }));
+                            }
+                          }}
+                          className="w-24 px-2 py-1 text-sm bg-white dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                        />
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Discount (%):</span>
@@ -1201,11 +1264,61 @@ const PurchaseList = ({ onBack }) => {
                         <td className="px-4 py-3 text-slate-500 dark:text-[#94a3b8]">
                           {item.dosage} tablet(s) × {item.frequency}/day
                         </td>
-                        <td className="px-4 py-3 text-center text-slate-900 dark:text-[#F8FAFC]">
-                          {item.monthly}
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={monthlyMedicineQuantities[item.id] !== undefined ? monthlyMedicineQuantities[item.id] : item.monthly}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '') {
+                                setMonthlyMedicineQuantities(prev => {
+                                  const newState = { ...prev };
+                                  delete newState[item.id];
+                                  return newState;
+                                });
+                              } else {
+                                const numValue = parseFloat(value);
+                                setMonthlyMedicineQuantities(prev => ({
+                                  ...prev,
+                                  [item.id]: numValue
+                                }));
+                                // When quantity changes, recalculate packs (remove pack override)
+                                setMonthlyMedicinePacks(prev => {
+                                  const newState = { ...prev };
+                                  delete newState[item.id];
+                                  return newState;
+                                });
+                              }
+                            }}
+                            className="w-20 px-2 py-1 text-sm bg-white dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-center"
+                          />
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <Badge variant="warning">{item.packs} packs</Badge>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={monthlyMedicinePacks[item.id] !== undefined ? monthlyMedicinePacks[item.id] : item.packs}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '') {
+                                setMonthlyMedicinePacks(prev => {
+                                  const newState = { ...prev };
+                                  delete newState[item.id];
+                                  return newState;
+                                });
+                              } else {
+                                const numValue = parseFloat(value);
+                                setMonthlyMedicinePacks(prev => ({
+                                  ...prev,
+                                  [item.id]: numValue
+                                }));
+                              }
+                            }}
+                            className="w-20 px-2 py-1 text-sm bg-white dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-center"
+                          />
                         </td>
                         <td className="px-4 py-3 text-center">
                           <input
