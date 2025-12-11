@@ -63,10 +63,11 @@ const PurchaseList = ({ onBack }) => {
   const handleMedicationSelect = (medicationId) => {
     const medication = medications.find(m => m.id === medicationId);
     if (medication) {
+      const packSize = medication.packSize || 1;
       setFormData({
         medicationId: medication.id,
         medicationName: medication.name,
-        quantity: '1',
+        quantity: packSize.toString(), // Default to 1 pack worth of tablets
         price: medication.price?.toString() || '0',
         discount: ''
       });
@@ -79,12 +80,26 @@ const PurchaseList = ({ onBack }) => {
     if (!formData.medicationName || !formData.quantity || !formData.price) return;
 
     try {
+      // Quantity is stored as tablets (integer)
+      const tabletQuantity = parseInt(formData.quantity);
+      const price = parseFloat(formData.price);
+      const discount = formData.discount ? parseFloat(formData.discount) : 0;
+      
+      // Calculate packs and totalCost based on medication's packSize
+      const medication = formData.medicationId ? medications.find(m => m.id === formData.medicationId) : null;
+      const packSize = medication?.packSize || 1;
+      const packs = tabletQuantity / packSize;
+      const subtotal = packs * price;
+      const discountAmount = discount ? subtotal * (discount / 100) : 0;
+      const totalCost = subtotal - discountAmount;
+      
       const itemData = {
         medicationId: formData.medicationId || null,
         medicationName: formData.medicationName,
-        quantity: parseInt(formData.quantity),
-        price: parseFloat(formData.price),
-        ...(formData.discount && { discount: parseFloat(formData.discount) })
+        quantity: tabletQuantity, // Store as tablets
+        price: price,
+        totalCost: totalCost, // Calculate and send totalCost based on packs
+        ...(discount > 0 && { discount: discount })
       };
 
       if (editingItem) {
@@ -108,7 +123,7 @@ const PurchaseList = ({ onBack }) => {
     setFormData({
       medicationId: item.medicationId || '',
       medicationName: item.medicationName,
-      quantity: item.quantity.toString(),
+      quantity: item.quantity.toString(), // quantity is already in tablets
       price: item.price.toString(),
       discount: (originalItem?.discount || item.discount) ? (originalItem?.discount || item.discount).toString() : ''
     });
@@ -120,7 +135,28 @@ const PurchaseList = ({ onBack }) => {
   const handleDelete = async () => {
     if (deleteConfirm.id) {
       try {
-        await deletePurchaseListItem.mutateAsync(deleteConfirm.id);
+        // Check if it's a monthly medicine (starts with "monthly-")
+        if (deleteConfirm.id.startsWith('monthly-')) {
+          // Remove from state for monthly medicines
+          setMonthlyMedicineQuantities(prev => {
+            const newState = { ...prev };
+            delete newState[deleteConfirm.id];
+            return newState;
+          });
+          setMonthlyMedicinePacks(prev => {
+            const newState = { ...prev };
+            delete newState[deleteConfirm.id];
+            return newState;
+          });
+          setMonthlyMedicineDiscounts(prev => {
+            const newState = { ...prev };
+            delete newState[deleteConfirm.id];
+            return newState;
+          });
+        } else {
+          // Regular purchase list item - delete from database
+          await deletePurchaseListItem.mutateAsync(deleteConfirm.id);
+        }
         setDeleteConfirm({ isOpen: false, id: null, name: '' });
       } catch (error) {
         console.error('Error deleting item:', error);
@@ -197,7 +233,11 @@ const PurchaseList = ({ onBack }) => {
   // Get medicines (from purchase list items)
   const getNormalMedicines = () => {
     return purchaseListItems.map(item => {
-      const subtotal = item.quantity * item.price;
+      const medication = item.medicationId ? medications.find(m => m.id === item.medicationId) : null;
+      const packSize = medication?.packSize || 1;
+      // Quantity is stored as tablets, calculate packs
+      const packs = item.quantity / packSize;
+      const subtotal = packs * item.price;
       const discount = item.discount || 0;
       const discountAmount = discount ? subtotal * (discount / 100) : 0;
       // Use totalCost from database (already includes discount) as final cost
@@ -208,13 +248,15 @@ const PurchaseList = ({ onBack }) => {
         type: 'normal',
         medicationName: item.medicationName,
         strength: item.medication?.strength || '',
-        quantity: item.quantity,
+        quantity: item.quantity, // tablets
+        packs: packs, // calculated packs (can be fractional)
         price: item.price,
         cost: finalCost,
         subtotal,
         discount,
         discountAmount,
-        medicationId: item.medicationId
+        medicationId: item.medicationId,
+        packSize: packSize
       };
     });
   };
@@ -233,7 +275,7 @@ const PurchaseList = ({ onBack }) => {
   const totalCost = subtotal - globalDiscountAmount;
   const totalPacks = allMedicines.reduce((sum, item) => {
     if (item.type === 'monthly') return sum + item.packs;
-    return sum + item.quantity;
+    return sum + (item.packs || 0); // Use packs for regular medicines too
   }, 0);
 
   // Generate text content for download
@@ -265,7 +307,8 @@ const PurchaseList = ({ onBack }) => {
         text += `${idx + 1}. ${item.medicationName}`;
         if (item.strength) text += ` (${item.strength})`;
         text += `\n`;
-        text += `   Quantity: ${item.quantity} | Price: ${item.price.toLocaleString()} BDT`;
+        const packsDisplay = item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1);
+        text += `   Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT`;
         if (item.discount > 0) {
           text += ` | Discount: ${item.discount.toFixed(1)}%`;
           text += `\n   Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`;
@@ -441,12 +484,13 @@ const PurchaseList = ({ onBack }) => {
           doc.text(medName, 16, yPos);
           yPos += 6;
           doc.setFontSize(9);
+          const packsDisplay = item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1);
           if (item.discount > 0) {
-            doc.text(`Quantity: ${item.quantity} | Price: ${item.price.toLocaleString()} BDT | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
+            doc.text(`Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
             yPos += 5;
             doc.text(`Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`, 20, yPos);
           } else {
-            doc.text(`Quantity: ${item.quantity} | Price: ${item.price.toLocaleString()} BDT | Total: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+            doc.text(`Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT | Total: ${item.cost.toLocaleString()} BDT`, 20, yPos);
           }
           yPos += 8;
         });
@@ -817,9 +861,10 @@ const PurchaseList = ({ onBack }) => {
             />
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Quantity"
+                label="Quantity (Tablets)"
                 type="number"
                 min="1"
+                step="1"
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                 required
@@ -834,6 +879,26 @@ const PurchaseList = ({ onBack }) => {
                 required
               />
             </div>
+            {formData.medicationId && (() => {
+              const medication = medications.find(m => m.id === formData.medicationId);
+              if (medication && medication.packSize) {
+                const tabletQty = parseFloat(formData.quantity) || 0;
+                const calculatedPacks = tabletQty / medication.packSize;
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-500 dark:text-[#94a3b8] mb-1.5">
+                      Packs
+                    </label>
+                    <div className="w-full bg-slate-50 dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded-lg px-4 py-2.5 text-slate-900 dark:text-[#F8FAFC]">
+                      <Badge variant="warning">
+                        {calculatedPacks % 1 === 0 ? calculatedPacks : calculatedPacks.toFixed(1)} packs
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Discount (%)"
@@ -850,10 +915,13 @@ const PurchaseList = ({ onBack }) => {
                 </label>
                 <div className="w-full bg-slate-50 dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded-lg px-4 py-2.5 text-slate-900 dark:text-[#F8FAFC]">
                   {(() => {
-                    const quantity = parseFloat(formData.quantity) || 0;
+                    const medication = formData.medicationId ? medications.find(m => m.id === formData.medicationId) : null;
+                    const packSize = medication?.packSize || 1;
+                    const tabletQty = parseFloat(formData.quantity) || 0;
+                    const packs = tabletQty / packSize;
                     const price = parseFloat(formData.price) || 0;
                     const discount = parseFloat(formData.discount) || 0;
-                    const subtotal = quantity * price;
+                    const subtotal = packs * price;
                     const discountAmount = discount ? subtotal * (discount / 100) : 0;
                     const finalPrice = subtotal - discountAmount;
                     return finalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -959,8 +1027,14 @@ const PurchaseList = ({ onBack }) => {
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Quantity</p>
+                        <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Tablets</p>
                         <p className="font-medium text-slate-900 dark:text-[#F8FAFC]">{item.quantity}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Packs</p>
+                        <Badge variant="warning">
+                          {item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1)} packs
+                        </Badge>
                       </div>
                       <div>
                         <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Price</p>
@@ -1002,7 +1076,8 @@ const PurchaseList = ({ onBack }) => {
                   <thead className="text-xs text-slate-500 dark:text-[#94a3b8] uppercase bg-slate-50 dark:bg-[#111725]">
                     <tr>
                       <th className="px-4 py-3 text-left rounded-l-lg">Medicine</th>
-                      <th className="px-4 py-3 text-center">Quantity</th>
+                      <th className="px-4 py-3 text-center">Tablets</th>
+                      <th className="px-4 py-3 text-center">Packs</th>
                       <th className="px-4 py-3 text-center">Price</th>
                       <th className="px-4 py-3 text-center">Discount</th>
                       <th className="px-4 py-3 text-right">Total Cost</th>
@@ -1047,6 +1122,11 @@ const PurchaseList = ({ onBack }) => {
                         </td>
                         <td className="px-4 py-3 text-center text-slate-900 dark:text-[#F8FAFC]">
                           {item.quantity}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <Badge variant="warning">
+                            {item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1)} packs
+                          </Badge>
                         </td>
                         <td className="px-4 py-3 text-center text-slate-900 dark:text-[#F8FAFC]">
                           {item.price.toLocaleString()} BDT
@@ -1113,13 +1193,23 @@ const PurchaseList = ({ onBack }) => {
               <div className="md:hidden space-y-3">
                 {getMonthlyMedicines().map((item) => (
                   <div key={item.id} className="border border-slate-200 dark:border-[#27335D] rounded-lg p-4 bg-slate-50/50 dark:bg-[#111725]">
-                    <div className="mb-3">
-                      <p className="font-semibold text-slate-900 dark:text-[#F8FAFC]">
-                        {item.medicationName}
-                      </p>
-                      {item.strength && (
-                        <p className="text-xs text-slate-500 dark:text-[#94a3b8] mt-0.5">{item.strength}</p>
-                      )}
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-900 dark:text-[#F8FAFC]">
+                          {item.medicationName}
+                        </p>
+                        {item.strength && (
+                          <p className="text-xs text-slate-500 dark:text-[#94a3b8] mt-0.5">{item.strength}</p>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setDeleteConfirm({ isOpen: true, id: item.id, name: item.medicationName })}
+                        className="p-1.5 text-red-600 hover:text-red-700"
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
                     </div>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
@@ -1242,7 +1332,8 @@ const PurchaseList = ({ onBack }) => {
                       <th className="px-4 py-3 text-center">Monthly Qty</th>
                       <th className="px-4 py-3 text-center">Packs</th>
                       <th className="px-4 py-3 text-center">Discount (%)</th>
-                      <th className="px-4 py-3 text-right rounded-r-lg">Cost</th>
+                      <th className="px-4 py-3 text-right">Cost</th>
+                      <th className="px-4 py-3 text-right rounded-r-lg">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-[#27335D]">
@@ -1353,6 +1444,16 @@ const PurchaseList = ({ onBack }) => {
                               {(item.cost || 0).toLocaleString()} BDT
                             </p>
                           )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Button
+                            variant="ghost"
+                            onClick={() => setDeleteConfirm({ isOpen: true, id: item.id, name: item.medicationName })}
+                            className="p-1.5 text-red-600 hover:text-red-700"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
                         </td>
                       </tr>
                     ))}

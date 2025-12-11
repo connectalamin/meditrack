@@ -42,10 +42,19 @@ export const getPurchaseListItems = async (req, res, next) => {
 
 export const createPurchaseListItem = async (req, res, next) => {
   try {
-    const { medicationId, medicationName, quantity, price, discount } = req.body;
-    const subtotal = quantity * price;
-    const discountAmount = discount ? subtotal * (discount / 100) : 0;
-    const totalCost = subtotal - discountAmount;
+    const { medicationId, medicationName, quantity, price, discount, totalCost } = req.body;
+    
+    // If totalCost is provided from frontend (calculated based on packs), use it
+    // Otherwise, calculate it (for backward compatibility)
+    let finalTotalCost;
+    if (totalCost !== undefined) {
+      finalTotalCost = totalCost;
+    } else {
+      // Fallback: calculate based on quantity (old way, assumes quantity = packs)
+      const subtotal = quantity * price;
+      const discountAmount = discount ? subtotal * (discount / 100) : 0;
+      finalTotalCost = subtotal - discountAmount;
+    }
 
     const purchaseListItem = await prisma.purchaseListItem.create({
       data: {
@@ -55,7 +64,7 @@ export const createPurchaseListItem = async (req, res, next) => {
         quantity,
         price,
         discount: discount || null,
-        totalCost
+        totalCost: finalTotalCost
       },
       include: {
         medication: true
@@ -71,7 +80,7 @@ export const createPurchaseListItem = async (req, res, next) => {
 export const updatePurchaseListItem = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { quantity, price, medicationName, discount } = req.body;
+    const { quantity, price, medicationName, discount, totalCost } = req.body;
 
     // Calculate totalCost if quantity, price, or discount is updated
     const existingItem = await prisma.purchaseListItem.findFirst({
@@ -88,9 +97,18 @@ export const updatePurchaseListItem = async (req, res, next) => {
     const finalQuantity = quantity !== undefined ? quantity : existingItem.quantity;
     const finalPrice = price !== undefined ? price : existingItem.price;
     const finalDiscount = discount !== undefined ? discount : existingItem.discount;
-    const subtotal = finalQuantity * finalPrice;
-    const discountAmount = finalDiscount ? subtotal * (finalDiscount / 100) : 0;
-    const totalCost = subtotal - discountAmount;
+    
+    // If totalCost is provided from frontend (calculated based on packs), use it
+    // Otherwise, calculate it (for backward compatibility)
+    let finalTotalCost;
+    if (totalCost !== undefined) {
+      finalTotalCost = totalCost;
+    } else {
+      // Fallback: calculate based on quantity (old way, assumes quantity = packs)
+      const subtotal = finalQuantity * finalPrice;
+      const discountAmount = finalDiscount ? subtotal * (finalDiscount / 100) : 0;
+      finalTotalCost = subtotal - discountAmount;
+    }
 
     const purchaseListItem = await prisma.purchaseListItem.update({
       where: {
@@ -101,7 +119,7 @@ export const updatePurchaseListItem = async (req, res, next) => {
         ...(price !== undefined && { price }),
         ...(medicationName !== undefined && { medicationName }),
         ...(discount !== undefined && { discount: finalDiscount }),
-        totalCost
+        totalCost: finalTotalCost
       },
       include: {
         medication: true
