@@ -36,6 +36,7 @@ const PurchaseList = ({ onBack }) => {
   const [monthlyMedicinePacks, setMonthlyMedicinePacks] = useState({});
   const [savingLog, setSavingLog] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [hidePrices, setHidePrices] = useState(false);
   
   const contentRef = useRef(null);
   const downloadMenuRef = useRef(null);
@@ -102,11 +103,17 @@ const PurchaseList = ({ onBack }) => {
         ...(discount > 0 && { discount: discount })
       };
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/e7f43027-f247-4995-8aa5-9d0c5d29559b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PurchaseList.jsx:105',message:'handleSubmit before API call',data:{editingItem:!!editingItem,itemData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       if (editingItem) {
         await updatePurchaseListItem.mutateAsync({
           id: editingItem.id,
           updates: itemData
         });
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/e7f43027-f247-4995-8aa5-9d0c5d29559b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PurchaseList.jsx:110',message:'updatePurchaseListItem success',data:{itemId:editingItem.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
       } else {
         await createPurchaseListItem.mutateAsync(itemData);
       }
@@ -277,6 +284,20 @@ const PurchaseList = ({ onBack }) => {
     if (item.type === 'monthly') return sum + item.packs;
     return sum + (item.packs || 0); // Use packs for regular medicines too
   }, 0);
+  
+  // Helper function to format packs to 2 decimal places
+  const formatPacks = (packs) => {
+    if (packs === undefined || packs === null) return '0.00';
+    return parseFloat(packs).toFixed(2);
+  };
+  
+  // Helper function to parse number with comma as decimal separator
+  const parseNumber = (value) => {
+    if (value === '' || value === null || value === undefined) return null;
+    // Replace comma with dot for parsing
+    const normalized = String(value).replace(',', '.');
+    return parseFloat(normalized);
+  };
 
   // Generate text content for download
   const generateTextContent = () => {
@@ -289,56 +310,94 @@ const PurchaseList = ({ onBack }) => {
     let text = `PURCHASE LIST\n`;
     text += `Generated on: ${date}\n`;
     text += `\n${'='.repeat(50)}\n\n`;
-    text += `SUMMARY\n`;
-    text += `Total Medicines: ${allMedicines.length}\n`;
-    text += `Total Items: ${totalPacks}\n`;
-    text += `Subtotal: ${subtotal.toLocaleString()} BDT\n`;
-    if (globalDiscountValue > 0) {
-      text += `Global Discount: ${globalDiscountValue.toFixed(1)}% (${globalDiscountAmount.toLocaleString()} BDT)\n`;
+    
+    if (!hidePrices) {
+      text += `SUMMARY\n`;
+      text += `Total Medicines: ${allMedicines.length}\n`;
+      text += `Total Items: ${formatPacks(totalPacks)}\n`;
+      text += `Subtotal: ${subtotal.toLocaleString()} BDT\n`;
+      if (globalDiscountValue > 0) {
+        text += `Global Discount: ${globalDiscountValue.toFixed(1)}% (${globalDiscountAmount.toLocaleString()} BDT)\n`;
+      }
+      text += `Final Cost: ${totalCost.toLocaleString()} BDT\n`;
+      text += `\n${'='.repeat(50)}\n\n`;
+    } else {
+      text += `SUMMARY\n`;
+      text += `Total Medicines: ${allMedicines.length}\n`;
+      text += `Total Items: ${formatPacks(totalPacks)}\n`;
+      text += `\n${'='.repeat(50)}\n\n`;
     }
-    text += `Final Cost: ${totalCost.toLocaleString()} BDT\n`;
-    text += `\n${'='.repeat(50)}\n\n`;
 
-    // Medicines
-    const normalMedicines = allMedicines.filter(m => m.type === 'normal');
-    if (normalMedicines.length > 0) {
-      text += `MEDICINES\n${'-'.repeat(50)}\n`;
-      normalMedicines.forEach((item, idx) => {
-        text += `${idx + 1}. ${item.medicationName}`;
-        if (item.strength) text += ` (${item.strength})`;
-        text += `\n`;
-        const packsDisplay = item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1);
-        text += `   Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT`;
-        if (item.discount > 0) {
-          text += ` | Discount: ${item.discount.toFixed(1)}%`;
-          text += `\n   Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`;
-        } else {
-          text += ` | Total: ${item.cost.toLocaleString()} BDT`;
+    if (hidePrices) {
+      // Grid/List format without prices
+      const normalMedicines = allMedicines.filter(m => m.type === 'normal');
+      const monthlyMedicines = includeMonthly ? allMedicines.filter(m => m.type === 'monthly') : [];
+      
+      if (normalMedicines.length > 0 || monthlyMedicines.length > 0) {
+        text += `MEDICINES LIST\n${'-'.repeat(50)}\n\n`;
+        
+        // Normal medicines in grid format
+        if (normalMedicines.length > 0) {
+          normalMedicines.forEach((item, idx) => {
+            const medName = item.medicationName + (item.strength ? ` (${item.strength})` : '');
+            const packsDisplay = formatPacks(item.packs);
+            text += `${idx + 1}. ${medName.padEnd(30)} | Qty: ${item.quantity.toString().padStart(5)} tablets | Packs: ${packsDisplay.padStart(6)}\n`;
+          });
+          text += `\n`;
         }
-        text += `\n\n`;
-      });
-      text += `\n`;
-    }
-
-    // Monthly medicines
-    if (includeMonthly) {
-      const monthlyMedicines = allMedicines.filter(m => m.type === 'monthly');
-      if (monthlyMedicines.length > 0) {
-        text += `MONTHLY MEDICINES\n${'-'.repeat(50)}\n`;
-        monthlyMedicines.forEach((item, idx) => {
+        
+        // Monthly medicines in grid format
+        if (monthlyMedicines.length > 0) {
+          monthlyMedicines.forEach((item, idx) => {
+            const medName = item.medicationName + (item.strength ? ` (${item.strength})` : '') + ` - ${item.memberName}`;
+            const packsDisplay = formatPacks(item.packs);
+            text += `${normalMedicines.length + idx + 1}. ${medName.padEnd(40)} | Qty: ${item.monthly.toString().padStart(5)} tablets | Packs: ${packsDisplay.padStart(6)} | ${item.dosage}×${item.frequency}/day\n`;
+          });
+        }
+      }
+    } else {
+      // Original format with prices
+      // Medicines
+      const normalMedicines = allMedicines.filter(m => m.type === 'normal');
+      if (normalMedicines.length > 0) {
+        text += `MEDICINES\n${'-'.repeat(50)}\n`;
+        normalMedicines.forEach((item, idx) => {
           text += `${idx + 1}. ${item.medicationName}`;
           if (item.strength) text += ` (${item.strength})`;
-          text += ` - ${item.memberName}\n`;
-          text += `   Schedule: ${item.dosage} tablet(s) × ${item.frequency}/day\n`;
-          text += `   Monthly Qty: ${item.monthly} | Packs: ${item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1)}`;
+          text += `\n`;
+          const packsDisplay = formatPacks(item.packs);
+          text += `   Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT`;
           if (item.discount > 0) {
             text += ` | Discount: ${item.discount.toFixed(1)}%`;
             text += `\n   Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`;
           } else {
-            text += ` | Cost: ${item.cost.toLocaleString()} BDT`;
+            text += ` | Total: ${item.cost.toLocaleString()} BDT`;
           }
           text += `\n\n`;
         });
+        text += `\n`;
+      }
+
+      // Monthly medicines
+      if (includeMonthly) {
+        const monthlyMedicines = allMedicines.filter(m => m.type === 'monthly');
+        if (monthlyMedicines.length > 0) {
+          text += `MONTHLY MEDICINES\n${'-'.repeat(50)}\n`;
+          monthlyMedicines.forEach((item, idx) => {
+            text += `${idx + 1}. ${item.medicationName}`;
+            if (item.strength) text += ` (${item.strength})`;
+            text += ` - ${item.memberName}\n`;
+            text += `   Schedule: ${item.dosage} tablet(s) × ${item.frequency}/day\n`;
+            text += `   Monthly Qty: ${item.monthly} | Packs: ${formatPacks(item.packs)}`;
+            if (item.discount > 0) {
+              text += ` | Discount: ${item.discount.toFixed(1)}%`;
+              text += `\n   Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`;
+            } else {
+              text += ` | Cost: ${item.cost.toLocaleString()} BDT`;
+            }
+            text += `\n\n`;
+          });
+        }
       }
     }
     
@@ -456,77 +515,133 @@ const PurchaseList = ({ onBack }) => {
       doc.setFontSize(10);
       doc.text(`Total Medicines: ${allMedicines.length}`, 14, yPos);
       yPos += 6;
-      doc.text(`Total Items: ${totalPacks}`, 14, yPos);
-      yPos += 6;
-      doc.text(`Subtotal: ${subtotal.toLocaleString()} BDT`, 14, yPos);
-      yPos += 6;
-      if (globalDiscountValue > 0) {
-        doc.text(`Global Discount: ${globalDiscountValue.toFixed(1)}% (${globalDiscountAmount.toLocaleString()} BDT)`, 14, yPos);
+      doc.text(`Total Items: ${formatPacks(totalPacks)}`, 14, yPos);
+      if (!hidePrices) {
         yPos += 6;
+        doc.text(`Subtotal: ${subtotal.toLocaleString()} BDT`, 14, yPos);
+        yPos += 6;
+        if (globalDiscountValue > 0) {
+          doc.text(`Global Discount: ${globalDiscountValue.toFixed(1)}% (${globalDiscountAmount.toLocaleString()} BDT)`, 14, yPos);
+          yPos += 6;
+        }
+        doc.text(`Final Cost: ${totalCost.toLocaleString()} BDT`, 14, yPos);
       }
-      doc.text(`Final Cost: ${totalCost.toLocaleString()} BDT`, 14, yPos);
       yPos += 10;
       
-      // Medicines
-      const normalMedicines = allMedicines.filter(m => m.type === 'normal');
-      if (normalMedicines.length > 0) {
-        if (yPos > 270) { doc.addPage(); yPos = 20; }
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
-        doc.text('MEDICINES', 14, yPos);
-        yPos += 8;
-        doc.setFont(undefined, 'normal');
-        doc.setFontSize(10);
-        normalMedicines.forEach((item, idx) => {
-          if (yPos > 270) { doc.addPage(); yPos = 20; }
-          let medName = `${idx + 1}. ${item.medicationName}`;
-          if (item.strength) medName += ` (${item.strength})`;
-          doc.text(medName, 16, yPos);
-          yPos += 6;
-          doc.setFontSize(9);
-          const packsDisplay = item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1);
-          if (item.discount > 0) {
-            doc.text(`Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
-            yPos += 5;
-            doc.text(`Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`, 20, yPos);
-          } else {
-            doc.text(`Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT | Total: ${item.cost.toLocaleString()} BDT`, 20, yPos);
-          }
-          yPos += 8;
-        });
-        yPos += 5;
-      }
-
-      // Monthly medicines
-      if (includeMonthly) {
-        const monthlyMedicines = allMedicines.filter(m => m.type === 'monthly');
-        if (monthlyMedicines.length > 0) {
+      if (hidePrices) {
+        // Grid format without prices
+        const normalMedicines = allMedicines.filter(m => m.type === 'normal');
+        const monthlyMedicines = includeMonthly ? allMedicines.filter(m => m.type === 'monthly') : [];
+        
+        if (normalMedicines.length > 0 || monthlyMedicines.length > 0) {
           if (yPos > 270) { doc.addPage(); yPos = 20; }
           doc.setFontSize(12);
           doc.setFont(undefined, 'bold');
-          doc.text('MONTHLY MEDICINES', 14, yPos);
+          doc.text('MEDICINES LIST', 14, yPos);
+          yPos += 8;
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(9);
+          
+          // Table header
+          doc.setFont(undefined, 'bold');
+          doc.text('No.', 14, yPos);
+          doc.text('Medicine Name', 25, yPos);
+          doc.text('Qty', 120, yPos);
+          doc.text('Packs', 145, yPos);
+          if (monthlyMedicines.length > 0) {
+            doc.text('Schedule', 165, yPos);
+          }
+          yPos += 6;
+          doc.setFont(undefined, 'normal');
+          
+          // Normal medicines
+          normalMedicines.forEach((item, idx) => {
+            if (yPos > 270) { doc.addPage(); yPos = 20; }
+            const medName = item.medicationName + (item.strength ? ` (${item.strength})` : '');
+            const packsDisplay = formatPacks(item.packs);
+            doc.text(`${idx + 1}.`, 14, yPos);
+            doc.text(medName.length > 40 ? medName.substring(0, 37) + '...' : medName, 25, yPos);
+            doc.text(`${item.quantity}`, 120, yPos);
+            doc.text(packsDisplay, 145, yPos);
+            yPos += 6;
+          });
+          
+          // Monthly medicines
+          monthlyMedicines.forEach((item, idx) => {
+            if (yPos > 270) { doc.addPage(); yPos = 20; }
+            const medName = item.medicationName + (item.strength ? ` (${item.strength})` : '') + ` - ${item.memberName}`;
+            const packsDisplay = formatPacks(item.packs);
+            doc.text(`${normalMedicines.length + idx + 1}.`, 14, yPos);
+            doc.text(medName.length > 40 ? medName.substring(0, 37) + '...' : medName, 25, yPos);
+            doc.text(`${item.monthly}`, 120, yPos);
+            doc.text(packsDisplay, 145, yPos);
+            doc.text(`${item.dosage}×${item.frequency}/day`, 165, yPos);
+            yPos += 6;
+          });
+        }
+      } else {
+        // Original format with prices
+        // Medicines
+        const normalMedicines = allMedicines.filter(m => m.type === 'normal');
+        if (normalMedicines.length > 0) {
+          if (yPos > 270) { doc.addPage(); yPos = 20; }
+          doc.setFontSize(12);
+          doc.setFont(undefined, 'bold');
+          doc.text('MEDICINES', 14, yPos);
           yPos += 8;
           doc.setFont(undefined, 'normal');
           doc.setFontSize(10);
-          monthlyMedicines.forEach((item, idx) => {
+          normalMedicines.forEach((item, idx) => {
             if (yPos > 270) { doc.addPage(); yPos = 20; }
             let medName = `${idx + 1}. ${item.medicationName}`;
-            if (item.strength) medName += ` (${item.strength}) - ${item.memberName}`;
+            if (item.strength) medName += ` (${item.strength})`;
             doc.text(medName, 16, yPos);
             yPos += 6;
             doc.setFontSize(9);
-            doc.text(`Schedule: ${item.dosage} tablet(s) × ${item.frequency}/day`, 20, yPos);
-            yPos += 5;
-            const packsDisplay = item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1);
+            const packsDisplay = formatPacks(item.packs);
             if (item.discount > 0) {
-              doc.text(`Monthly Qty: ${item.monthly} | Packs: ${packsDisplay} | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
+              doc.text(`Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
               yPos += 5;
               doc.text(`Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`, 20, yPos);
             } else {
-              doc.text(`Monthly Qty: ${item.monthly} | Packs: ${packsDisplay} | Cost: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+              doc.text(`Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT | Total: ${item.cost.toLocaleString()} BDT`, 20, yPos);
             }
             yPos += 8;
           });
+          yPos += 5;
+        }
+
+        // Monthly medicines
+        if (includeMonthly) {
+          const monthlyMedicines = allMedicines.filter(m => m.type === 'monthly');
+          if (monthlyMedicines.length > 0) {
+            if (yPos > 270) { doc.addPage(); yPos = 20; }
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('MONTHLY MEDICINES', 14, yPos);
+            yPos += 8;
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(10);
+            monthlyMedicines.forEach((item, idx) => {
+              if (yPos > 270) { doc.addPage(); yPos = 20; }
+              let medName = `${idx + 1}. ${item.medicationName}`;
+              if (item.strength) medName += ` (${item.strength}) - ${item.memberName}`;
+              doc.text(medName, 16, yPos);
+              yPos += 6;
+              doc.setFontSize(9);
+              doc.text(`Schedule: ${item.dosage} tablet(s) × ${item.frequency}/day`, 20, yPos);
+              yPos += 5;
+              const packsDisplay = formatPacks(item.packs);
+              if (item.discount > 0) {
+                doc.text(`Monthly Qty: ${item.monthly} | Packs: ${packsDisplay} | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
+                yPos += 5;
+                doc.text(`Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+              } else {
+                doc.text(`Monthly Qty: ${item.monthly} | Packs: ${packsDisplay} | Cost: ${item.cost.toLocaleString()} BDT`, 20, yPos);
+              }
+              yPos += 8;
+            });
+          }
         }
       }
       
@@ -699,6 +814,18 @@ const PurchaseList = ({ onBack }) => {
                   Include Monthly Medicines
                 </label>
               </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="hidePrices"
+                  checked={hidePrices}
+                  onChange={(e) => setHidePrices(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 bg-white border-slate-300 rounded focus:ring-emerald-500 dark:bg-[#1B2430] dark:border-[#27335D]"
+                />
+                <label htmlFor="hidePrices" className="text-sm font-medium text-slate-900 dark:text-[#F8FAFC] cursor-pointer">
+                  Hide Prices in Downloads
+                </label>
+              </div>
 
               {includeMonthly && (
                 <div className="ml-5 space-y-1.5 border-l-2 border-slate-200 dark:border-[#27335D] pl-3">
@@ -774,56 +901,60 @@ const PurchaseList = ({ onBack }) => {
                   </div>
                   <div>
                     <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Total Quantity</p>
-                    <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{totalPacks} {totalPacks === 1 ? 'Item' : 'Items'}</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">{formatPacks(totalPacks)} {totalPacks === 1 ? 'Item' : 'Items'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg">
-                    <ShoppingBag className="text-emerald-600 dark:text-emerald-400" size={24} />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Subtotal</p>
-                    <p className={`text-2xl font-bold ${globalDiscountValue > 0 ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-[#F8FAFC]'}`}>
-                      {subtotal.toLocaleString()} BDT
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="border-t border-amber-200 dark:border-amber-500/20 pt-4">
-                <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                  <div className="flex-1 md:flex-none">
-                    <Input
-                      label="Global Discount (%)"
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      value={globalDiscount}
-                      onChange={(e) => setGlobalDiscount(e.target.value)}
-                      className="mb-0 w-full md:w-40"
-                      placeholder="0"
-                    />
-                  </div>
-                  {globalDiscountValue > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Discount Amount</p>
-                        <p className="text-xl font-semibold text-red-600 dark:text-red-400">
-                          -{globalDiscountAmount.toLocaleString()} BDT
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                {!hidePrices && (
                   <div className="flex items-center gap-3">
+                    <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg">
+                      <ShoppingBag className="text-emerald-600 dark:text-emerald-400" size={24} />
+                    </div>
                     <div>
-                      <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Final Cost</p>
-                      <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                        {totalCost.toLocaleString()} BDT
+                      <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Subtotal</p>
+                      <p className={`text-2xl font-bold ${globalDiscountValue > 0 ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-[#F8FAFC]'}`}>
+                        {subtotal.toLocaleString()} BDT
                       </p>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
+              {!hidePrices && (
+                <div className="border-t border-amber-200 dark:border-amber-500/20 pt-4">
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                    <div className="flex-1 md:flex-none">
+                      <Input
+                        label="Global Discount (%)"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={globalDiscount}
+                        onChange={(e) => setGlobalDiscount(e.target.value)}
+                        className="mb-0 w-full md:w-40"
+                        placeholder="0"
+                      />
+                    </div>
+                    {globalDiscountValue > 0 && (
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Discount Amount</p>
+                          <p className="text-xl font-semibold text-red-600 dark:text-red-400">
+                            -{globalDiscountAmount.toLocaleString()} BDT
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="text-sm text-slate-600 dark:text-[#94a3b8]">Final Cost</p>
+                        <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                          {totalCost.toLocaleString()} BDT
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -1033,7 +1164,7 @@ const PurchaseList = ({ onBack }) => {
                       <div>
                         <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-1">Packs</p>
                         <Badge variant="warning">
-                          {item.packs % 1 === 0 ? item.packs : item.packs.toFixed(1)} packs
+                          {formatPacks(item.packs)} packs
                         </Badge>
                       </div>
                       <div>
@@ -1255,10 +1386,8 @@ const PurchaseList = ({ onBack }) => {
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Packs:</span>
                         <input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={monthlyMedicinePacks[item.id] !== undefined ? monthlyMedicinePacks[item.id] : item.packs}
+                          type="text"
+                          value={monthlyMedicinePacks[item.id] !== undefined ? formatPacks(monthlyMedicinePacks[item.id]) : formatPacks(item.packs)}
                           onChange={(e) => {
                             const value = e.target.value;
                             if (value === '') {
@@ -1267,15 +1396,30 @@ const PurchaseList = ({ onBack }) => {
                                 delete newState[item.id];
                                 return newState;
                               });
+                              // Remove quantity override when packs is cleared
+                              setMonthlyMedicineQuantities(prev => {
+                                const newState = { ...prev };
+                                delete newState[item.id];
+                                return newState;
+                              });
                             } else {
-                              const numValue = parseFloat(value);
-                              setMonthlyMedicinePacks(prev => ({
-                                ...prev,
-                                [item.id]: numValue
-                              }));
+                              const numValue = parseNumber(value);
+                              if (numValue !== null && !isNaN(numValue)) {
+                                setMonthlyMedicinePacks(prev => ({
+                                  ...prev,
+                                  [item.id]: numValue
+                                }));
+                                // Calculate monthly quantity from packs: monthly = packs * packSize
+                                const calculatedMonthly = Math.round(numValue * item.packSize);
+                                setMonthlyMedicineQuantities(prev => ({
+                                  ...prev,
+                                  [item.id]: calculatedMonthly
+                                }));
+                              }
                             }
                           }}
                           className="w-24 px-2 py-1 text-sm bg-white dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                          placeholder="0.00"
                         />
                       </div>
                       <div className="flex justify-between items-center">
@@ -1388,10 +1532,8 @@ const PurchaseList = ({ onBack }) => {
                         </td>
                         <td className="px-4 py-3 text-center">
                           <input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            value={monthlyMedicinePacks[item.id] !== undefined ? monthlyMedicinePacks[item.id] : item.packs}
+                            type="text"
+                            value={monthlyMedicinePacks[item.id] !== undefined ? formatPacks(monthlyMedicinePacks[item.id]) : formatPacks(item.packs)}
                             onChange={(e) => {
                               const value = e.target.value;
                               if (value === '') {
@@ -1400,15 +1542,30 @@ const PurchaseList = ({ onBack }) => {
                                   delete newState[item.id];
                                   return newState;
                                 });
+                                // Remove quantity override when packs is cleared
+                                setMonthlyMedicineQuantities(prev => {
+                                  const newState = { ...prev };
+                                  delete newState[item.id];
+                                  return newState;
+                                });
                               } else {
-                                const numValue = parseFloat(value);
-                                setMonthlyMedicinePacks(prev => ({
-                                  ...prev,
-                                  [item.id]: numValue
-                                }));
+                                const numValue = parseNumber(value);
+                                if (numValue !== null && !isNaN(numValue)) {
+                                  setMonthlyMedicinePacks(prev => ({
+                                    ...prev,
+                                    [item.id]: numValue
+                                  }));
+                                  // Calculate monthly quantity from packs: monthly = packs * packSize
+                                  const calculatedMonthly = Math.round(numValue * item.packSize);
+                                  setMonthlyMedicineQuantities(prev => ({
+                                    ...prev,
+                                    [item.id]: calculatedMonthly
+                                  }));
+                                }
                               }
                             }}
                             className="w-20 px-2 py-1 text-sm bg-white dark:bg-[#111725] border border-slate-200 dark:border-[#27335D] rounded text-slate-900 dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-center"
+                            placeholder="0.00"
                           />
                         </td>
                         <td className="px-4 py-3 text-center">

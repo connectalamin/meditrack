@@ -1,4 +1,11 @@
 import prisma from '../config/database.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const LOG_PATH = path.join(__dirname, '../../.cursor/debug.log');
+const log = (data) => { try { fs.appendFileSync(LOG_PATH, JSON.stringify(data) + '\n'); } catch(e) {} };
 
 export const getPurchaseListItems = async (req, res, next) => {
   try {
@@ -79,8 +86,14 @@ export const createPurchaseListItem = async (req, res, next) => {
 
 export const updatePurchaseListItem = async (req, res, next) => {
   try {
+    // #region agent log
+    log({location:'purchaseListController.js:80',message:'updatePurchaseListItem entry',data:{params:req.params,body:req.body},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'});
+    // #endregion
     const { id } = req.params;
-    const { quantity, price, medicationName, discount, totalCost } = req.body;
+    const { quantity, price, medicationName, discount, totalCost, medicationId } = req.body;
+    // #region agent log
+    log({location:'purchaseListController.js:86',message:'extracted fields from body',data:{quantity,price,medicationName,discount,totalCost,medicationId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'});
+    // #endregion
 
     // Calculate totalCost if quantity, price, or discount is updated
     const existingItem = await prisma.purchaseListItem.findFirst({
@@ -110,21 +123,32 @@ export const updatePurchaseListItem = async (req, res, next) => {
       finalTotalCost = subtotal - discountAmount;
     }
 
+    // #region agent log
+    log({location:'purchaseListController.js:119',message:'before prisma update',data:{id,finalQuantity,finalPrice,finalDiscount,finalTotalCost,medicationId,medicationIdUndefined:medicationId===undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'});
+    // #endregion
+    const updateData = {
+      ...(quantity !== undefined && { quantity }),
+      ...(price !== undefined && { price }),
+      ...(medicationName !== undefined && { medicationName }),
+      ...(medicationId !== undefined && { medicationId: medicationId || null }),
+      ...(discount !== undefined && { discount: finalDiscount }),
+      totalCost: finalTotalCost
+    };
+    // #region agent log
+    log({location:'purchaseListController.js:130',message:'updateData constructed',data:{updateData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'});
+    // #endregion
     const purchaseListItem = await prisma.purchaseListItem.update({
       where: {
         id
       },
-      data: {
-        ...(quantity !== undefined && { quantity }),
-        ...(price !== undefined && { price }),
-        ...(medicationName !== undefined && { medicationName }),
-        ...(discount !== undefined && { discount: finalDiscount }),
-        totalCost: finalTotalCost
-      },
+      data: updateData,
       include: {
         medication: true
       }
     });
+    // #region agent log
+    log({location:'purchaseListController.js:141',message:'after prisma update',data:{id:purchaseListItem.id,medicationId:purchaseListItem.medicationId,medicationName:purchaseListItem.medicationName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'});
+    // #endregion
 
     res.json({ purchaseListItem });
   } catch (error) {
