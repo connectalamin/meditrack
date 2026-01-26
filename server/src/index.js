@@ -24,7 +24,9 @@ const app = express();
 
 // Trust proxy - Required for Vercel and other proxy services
 // This allows express-rate-limit to correctly identify client IPs
-app.set('trust proxy', true);
+// Use 1 to trust only the first proxy hop (more secure than true)
+// On Vercel, this is safe as there's only one proxy layer
+app.set('trust proxy', 1);
 
 // Middleware - CORS configuration (MUST be before rate limiting)
 // Allow multiple origins for development and production
@@ -130,14 +132,21 @@ app.options('*', (req, res) => {
   res.status(204).end();
 });
 
-// Rate limiting - Skip OPTIONS requests (preflight)
+// Rate limiting - Skip OPTIONS requests (preflight) and PDF generation routes
+// PDF generation can take longer and should not be rate limited as strictly
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // limit each IP to 1000 requests per windowMs
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.method === 'OPTIONS', // Skip rate limiting for OPTIONS requests
+  skip: (req) => {
+    // Skip rate limiting for OPTIONS requests
+    if (req.method === 'OPTIONS') return true;
+    // Skip rate limiting for PDF generation routes (they take longer)
+    if (req.path && req.path.startsWith('/api/pdf')) return true;
+    return false;
+  },
 });
 
 app.use(limiter);

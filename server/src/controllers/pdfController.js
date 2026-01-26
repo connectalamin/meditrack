@@ -270,8 +270,11 @@ export const generateMetricPDF = async (req, res, next) => {
     res.setHeader('Content-Length', pdfBuffer.length);
     res.setHeader('Content-Disposition', `attachment; filename="${type.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-vital-log-${new Date().toISOString().split('T')[0]}.pdf"`);
     res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     
+    // Send PDF buffer and ensure response is ended
     res.send(pdfBuffer);
+    console.log('PDF sent successfully, size:', pdfBuffer.length);
   } catch (error) {
     console.error('Error generating metric PDF:', error);
     console.error('Error stack:', error.stack);
@@ -403,8 +406,11 @@ export const generateAllVitalsPDF = async (req, res, next) => {
     res.setHeader('Content-Length', pdfBuffer.length);
     res.setHeader('Content-Disposition', `attachment; filename="${familyMember.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-vital-report-${new Date().toISOString().split('T')[0]}.pdf"`);
     res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     
+    // Send PDF buffer and ensure response is ended
     res.send(pdfBuffer);
+    console.log('PDF sent successfully, size:', pdfBuffer.length);
   } catch (error) {
     console.error('Error generating all vitals PDF:', error);
     console.error('Error stack:', error.stack);

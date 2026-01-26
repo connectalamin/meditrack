@@ -8,55 +8,80 @@ import puppeteer from 'puppeteer';
  */
 export const generatePDFFromHTML = async (html, options = {}) => {
   let browser;
+  let page;
   try {
     console.log('Starting PDF generation...');
     console.log('HTML length:', html.length);
     
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--disable-web-security'
-      ]
-    });
+    // Launch browser with error handling
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--disable-web-security'
+        ],
+        timeout: 60000 // 60 second timeout for browser launch
+      });
+      console.log('Browser launched successfully');
+    } catch (launchError) {
+      console.error('Failed to launch browser:', launchError);
+      throw new Error(`Failed to launch browser: ${launchError.message}`);
+    }
 
-    console.log('Browser launched successfully');
-
-    const page = await browser.newPage();
+    try {
+      page = await browser.newPage();
+      console.log('Page created successfully');
+    } catch (pageError) {
+      console.error('Failed to create page:', pageError);
+      throw new Error(`Failed to create page: ${pageError.message}`);
+    }
     
     // Set a longer timeout for page operations
-    page.setDefaultTimeout(30000);
+    page.setDefaultTimeout(60000); // Increased to 60 seconds
     
     console.log('Setting page content...');
     // Set content with a more lenient wait condition
-    await page.setContent(html, {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000
-    });
+    try {
+      await page.setContent(html, {
+        waitUntil: 'domcontentloaded',
+        timeout: 60000
+      });
+      console.log('Page content set successfully');
+    } catch (contentError) {
+      console.error('Failed to set page content:', contentError);
+      throw new Error(`Failed to set page content: ${contentError.message}`);
+    }
 
-    console.log('Page content set, waiting...');
+    console.log('Waiting for content to render...');
     // Wait a bit for any dynamic content (waitForTimeout was removed in newer Puppeteer versions)
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Increased wait time
 
     console.log('Generating PDF...');
     // Generate PDF
-    const pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '20mm',
-        right: '15mm',
-        bottom: '20mm',
-        left: '15mm'
-      },
-      ...options
-    });
-
-    console.log('PDF generated, size:', pdf ? pdf.length : 0);
+    let pdf;
+    try {
+      pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20mm',
+          right: '15mm',
+          bottom: '20mm',
+          left: '15mm'
+        },
+        timeout: 60000, // 60 second timeout for PDF generation
+        ...options
+      });
+      console.log('PDF generated, size:', pdf ? pdf.length : 0);
+    } catch (pdfError) {
+      console.error('Failed to generate PDF:', pdfError);
+      throw new Error(`Failed to generate PDF: ${pdfError.message}`);
+    }
 
     if (!pdf) {
       throw new Error('PDF generation returned null');
@@ -77,9 +102,20 @@ export const generatePDFFromHTML = async (html, options = {}) => {
     return pdfBuffer;
   } catch (error) {
     console.error('Error generating PDF:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
     throw new Error(`PDF generation failed: ${error.message}`);
   } finally {
+    // Close page first, then browser
+    if (page) {
+      try {
+        await page.close();
+        console.log('Page closed');
+      } catch (closeError) {
+        console.error('Error closing page:', closeError);
+      }
+    }
     if (browser) {
       try {
         await browser.close();
