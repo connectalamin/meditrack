@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Share2, Check, ClipboardList, Database, Trash2, Loader2, Users, Link2, X, Pill } from 'lucide-react';
+import { Share2, Check, ClipboardList, Database, Trash2, Loader2, Users, Link2, X, Pill, BookOpen } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { authAPI, medicationsAPI } from '../../utils/api';
+import APIDocsTab from '../api-docs/APIDocsTab';
 import { 
   useCreateMedication,
   useCreateFamilyMember,
@@ -22,6 +23,7 @@ import { seedDemoData } from '../../utils/seedDemoData';
 const SettingsTab = () => {
   const { user, setUser } = useAuth();
   const queryClient = useQueryClient();
+  const [showAPIDocs, setShowAPIDocs] = useState(false);
   
   // Get mutation hooks for seedDemoData
   const createMedication = useCreateMedication();
@@ -175,6 +177,24 @@ const SettingsTab = () => {
       setIsRemoving(false);
     }
   };
+
+  if (showAPIDocs) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4 mb-6">
+          <button
+            onClick={() => setShowAPIDocs(false)}
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1B2430] text-slate-600 dark:text-[#94a3b8] transition-colors"
+            aria-label="Back to settings"
+          >
+            <X size={20} />
+          </button>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">API Documentation</h2>
+        </div>
+        <APIDocsTab />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -383,6 +403,29 @@ const SettingsTab = () => {
             </p>
           )}
         </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-center gap-4 mb-6">
+          <div className="h-12 w-12 bg-emerald-100 dark:bg-[#34D399]/10 rounded-full flex items-center justify-center">
+            <BookOpen className="text-emerald-600 dark:text-[#34D399]" size={20} />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-[#F8FAFC]">API Documentation</h3>
+            <p className="text-sm text-slate-500 dark:text-[#94a3b8]">View and test all API endpoints</p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowAPIDocs(true)}
+          className="flex items-center justify-center gap-2"
+        >
+          <BookOpen size={16} />
+          Open API Documentation
+        </Button>
+        <p className="mt-3 text-xs text-slate-500 dark:text-[#94a3b8]">
+          Access interactive API documentation with live playground to test endpoints.
+        </p>
       </Card>
 
       <Card>
