@@ -223,17 +223,27 @@ const ReportsTab = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">Health Documents</h2>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-[#34D399] mb-1">
+            Records
+          </p>
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-[#F8FAFC]">
+            Health Documents
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-[#94a3b8] mt-2">
+            Upload and organize medical reports and prescriptions for your family.
+          </p>
+        </div>
         {editingId && (
-          <Button variant="secondary" onClick={resetForm}>
+          <Button variant="secondary" onClick={resetForm} className="hidden sm:inline-flex items-center gap-2">
             <X size={18} /> Cancel Edit
           </Button>
         )}
       </div>
 
-      <Card>
+      <Card className="bg-white/90 dark:bg-[#020617]/90 border-0 shadow-sm hover:shadow-md transition-shadow duration-200">
         {editingId && (
           <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg">
             <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">Editing: {reports.find(r => r.id === editingId)?.title}</p>
@@ -241,7 +251,7 @@ const ReportsTab = () => {
         )}
 
         {!editingId && (
-          <div className="mb-4 p-4 border-2 border-dashed border-slate-300 dark:border-[#27335D] rounded-xl flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-[#27335D]/20 transition-colors cursor-pointer relative">
+          <div className="mb-4 p-5 border-2 border-dashed border-slate-300 dark:border-[#27335D] rounded-2xl flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-[#0f172a] transition-colors cursor-pointer relative bg-slate-50/60 dark:bg-[#020617]">
             <input 
               type="file" 
               className="absolute inset-0 opacity-0 cursor-pointer" 
@@ -300,7 +310,9 @@ const ReportsTab = () => {
           </div>
           <div className="flex items-end">
             {editingId && (
-              <Button type="button" variant="secondary" onClick={resetForm} className="mr-2">Cancel</Button>
+              <Button type="button" variant="secondary" onClick={resetForm} className="mr-2 hidden sm:inline-flex">
+                Cancel
+              </Button>
             )}
             <Button type="submit" className="w-full" disabled={!title || (!selectedFile && !editingId)}>
               <Upload size={18} />
@@ -311,7 +323,7 @@ const ReportsTab = () => {
       </Card>
 
       {/* Sorting and Filtering Controls */}
-      <Card>
+      <Card className="bg-white/90 dark:bg-[#020617]/90 border-0 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
@@ -407,17 +419,22 @@ const ReportsTab = () => {
         )}
 
         {/* Results count */}
-        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-[#27335D]">
-          <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
+        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-[#27335D] flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-[#94a3b8]">
+          <span>
             Showing {filteredAndSortedReports.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredAndSortedReports.length)} of {filteredAndSortedReports.length} documents
             {filteredAndSortedReports.length !== reports.length && ` (${reports.length} total)`}
-          </p>
+          </span>
+          {hasActiveFilters && (
+            <span className="text-[11px] text-slate-400 dark:text-[#64748b]">
+              Filters applied – adjust or clear to see all documents.
+            </span>
+          )}
         </div>
       </Card>
 
       <div className="grid gap-3">
         {filteredAndSortedReports.length === 0 ? (
-          <Card>
+          <Card className="bg-white/90 dark:bg-[#020617]/90 border-0 shadow-sm">
             <div className="text-center py-12">
               <FileText className="mx-auto h-12 w-12 text-slate-400 dark:text-[#64748b] mb-3" />
               <p className="text-slate-500 dark:text-[#94a3b8]">
@@ -438,7 +455,7 @@ const ReportsTab = () => {
           paginatedReports.map(report => (
           <div
             key={report.id}
-            className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] rounded-lg group hover:border-emerald-500/50 transition-colors"
+            className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 bg-white/95 dark:bg-[#020617]/95 border border-slate-200 dark:border-[#27335D] rounded-xl group hover:border-emerald-500/50 hover:shadow-md transition-all"
           >
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${report.category === 'Prescription' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20'}`}>

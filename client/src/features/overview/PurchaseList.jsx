@@ -431,46 +431,85 @@ const PurchaseList = ({ onBack }) => {
     }
   };
 
-  // Download a single log as PDF
+  // Download a single saved log as a styled PDF (using the saved text content)
   const downloadLogAsPDF = async (log) => {
     try {
       const { default: jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
-      const createdAt = new Date(log.createdAt);
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 40;
+      let y = 60;
+
+      const createdAt = log.createdAt ? new Date(log.createdAt) : new Date();
       const dateString = createdAt.toLocaleString();
 
-      doc.setFontSize(16);
-      doc.text(log.title || 'Purchase List', 14, 20);
-      doc.setFontSize(10);
-      doc.text(`Saved on: ${dateString}`, 14, 28);
-      doc.text(
-        `Medicines: ${log.totalItems} • Quantity: ${log.totalQuantity} • Estimated Cost: ${log.totalCost.toLocaleString()} BDT`,
-        14,
-        34
-      );
+      // Soft page background
+      doc.setFillColor(248, 250, 252);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
 
+      // Header bar
+      doc.setFillColor(16, 185, 129); // emerald
+      doc.rect(0, 0, pageWidth, 70, 'F');
+      doc.setTextColor(255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.text('MediTrack', marginX, 30);
+      doc.setFontSize(13);
+      doc.text('Purchase List Log', marginX, 50);
       doc.setFontSize(10);
-      const leftMargin = 14;
-      let y = 44;
-      const lineHeight = 5;
-      const maxLineWidth = 180;
+      doc.text(`Saved on: ${dateString}`, pageWidth - marginX, 50, { align: 'right' });
 
-      const lines = doc.splitTextToSize(log.content || '', maxLineWidth);
+      // Summary pill
+      y = 100;
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(209, 250, 229);
+      doc.roundedRect(marginX, y - 18, pageWidth - marginX * 2, 70, 8, 8, 'FD');
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(log.title || 'Purchase List', marginX + 16, y - 2);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const infoLines = [
+        `Medicines: ${log.totalItems ?? '-'}`,
+        `Quantity: ${log.totalQuantity ?? '-'}`,
+        `Estimated Cost: ${
+          log.totalCost != null ? `${Number(log.totalCost).toLocaleString()} BDT` : '-'
+        }`,
+      ];
+      let sy = y + 12;
+      infoLines.forEach((line) => {
+        doc.text(line, marginX + 16, sy);
+        sy += 14;
+      });
+
+      // Body text (pretty-printed saved text)
+      y = y + 70 + 16;
+      doc.setTextColor(31, 41, 55);
+      doc.setFont('courier', 'normal');
+      doc.setFontSize(10);
+
+      const maxWidth = pageWidth - marginX * 2;
+      const lines = doc.splitTextToSize(log.content || '', maxWidth);
+      const lineHeight = 14;
+
       lines.forEach((line) => {
-        if (y > 280) {
+        if (y > pageHeight - 60) {
           doc.addPage();
-          y = 20;
+          y = 60;
         }
-        doc.text(line, leftMargin, y);
+        doc.text(line, marginX, y);
         y += lineHeight;
       });
 
-      doc.save(
-        `${(log.title || 'purchase-list')
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')}-${createdAt.toISOString().split('T')[0]}.pdf`
-      );
+      const safeTitle = (log.title || 'purchase-list')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-');
+      doc.save(`${safeTitle}-${createdAt.toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Error generating log PDF:', error);
       alert('PDF generation for this log failed.');
@@ -491,161 +530,216 @@ const PurchaseList = ({ onBack }) => {
     URL.revokeObjectURL(url);
   };
 
-  // Download as PDF
+  // Download the current list as a colourful, invoice-style PDF
   const downloadAsPDF = async () => {
     try {
       const { default: jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
-      
-      const date = new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      
-      doc.setFontSize(18);
-      doc.text('PURCHASE LIST', 14, 20);
-      doc.setFontSize(10);
-      doc.text(`Generated on: ${date}`, 14, 28);
-      
-      let yPos = 38;
-      doc.setFontSize(12);
-      doc.text('SUMMARY', 14, yPos);
-      yPos += 8;
-      doc.setFontSize(10);
-      doc.text(`Total Medicines: ${allMedicines.length}`, 14, yPos);
-      yPos += 6;
-      doc.text(`Total Items: ${formatPacks(totalPacks)}`, 14, yPos);
-      if (!hidePrices) {
-        yPos += 6;
-        doc.text(`Subtotal: ${subtotal.toLocaleString()} BDT`, 14, yPos);
-        yPos += 6;
-        if (globalDiscountValue > 0) {
-          doc.text(`Global Discount: ${globalDiscountValue.toFixed(1)}% (${globalDiscountAmount.toLocaleString()} BDT)`, 14, yPos);
-          yPos += 6;
-        }
-        doc.text(`Final Cost: ${totalCost.toLocaleString()} BDT`, 14, yPos);
-      }
-      yPos += 10;
-      
-      if (hidePrices) {
-        // Grid format without prices
-        const normalMedicines = allMedicines.filter(m => m.type === 'normal');
-        const monthlyMedicines = includeMonthly ? allMedicines.filter(m => m.type === 'monthly') : [];
-        
-        if (normalMedicines.length > 0 || monthlyMedicines.length > 0) {
-          if (yPos > 270) { doc.addPage(); yPos = 20; }
-          doc.setFontSize(12);
-          doc.setFont(undefined, 'bold');
-          doc.text('MEDICINES LIST', 14, yPos);
-          yPos += 8;
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(9);
-          
-          // Table header
-          doc.setFont(undefined, 'bold');
-          doc.text('No.', 14, yPos);
-          doc.text('Medicine Name', 25, yPos);
-          doc.text('Qty', 120, yPos);
-          doc.text('Packs', 145, yPos);
-          if (monthlyMedicines.length > 0) {
-            doc.text('Schedule', 165, yPos);
-          }
-          yPos += 6;
-          doc.setFont(undefined, 'normal');
-          
-          // Normal medicines
-          normalMedicines.forEach((item, idx) => {
-            if (yPos > 270) { doc.addPage(); yPos = 20; }
-            const medName = item.medicationName + (item.strength ? ` (${item.strength})` : '');
-            const packsDisplay = formatPacks(item.packs);
-            doc.text(`${idx + 1}.`, 14, yPos);
-            doc.text(medName.length > 40 ? medName.substring(0, 37) + '...' : medName, 25, yPos);
-            doc.text(`${item.quantity}`, 120, yPos);
-            doc.text(packsDisplay, 145, yPos);
-            yPos += 6;
-          });
-          
-          // Monthly medicines
-          monthlyMedicines.forEach((item, idx) => {
-            if (yPos > 270) { doc.addPage(); yPos = 20; }
-            const medName = item.medicationName + (item.strength ? ` (${item.strength})` : '') + ` - ${item.memberName}`;
-            const packsDisplay = formatPacks(item.packs);
-            doc.text(`${normalMedicines.length + idx + 1}.`, 14, yPos);
-            doc.text(medName.length > 40 ? medName.substring(0, 37) + '...' : medName, 25, yPos);
-            doc.text(`${item.monthly}`, 120, yPos);
-            doc.text(packsDisplay, 145, yPos);
-            doc.text(`${item.dosage}×${item.frequency}/day`, 165, yPos);
-            yPos += 6;
-          });
-        }
-      } else {
-        // Original format with prices
-        // Medicines
-        const normalMedicines = allMedicines.filter(m => m.type === 'normal');
-        if (normalMedicines.length > 0) {
-          if (yPos > 270) { doc.addPage(); yPos = 20; }
-          doc.setFontSize(12);
-          doc.setFont(undefined, 'bold');
-          doc.text('MEDICINES', 14, yPos);
-          yPos += 8;
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(10);
-          normalMedicines.forEach((item, idx) => {
-            if (yPos > 270) { doc.addPage(); yPos = 20; }
-            let medName = `${idx + 1}. ${item.medicationName}`;
-            if (item.strength) medName += ` (${item.strength})`;
-            doc.text(medName, 16, yPos);
-            yPos += 6;
-            doc.setFontSize(9);
-            const packsDisplay = formatPacks(item.packs);
-            if (item.discount > 0) {
-              doc.text(`Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
-              yPos += 5;
-              doc.text(`Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`, 20, yPos);
-            } else {
-              doc.text(`Tablets: ${item.quantity} | Packs: ${packsDisplay} | Price: ${item.price.toLocaleString()} BDT | Total: ${item.cost.toLocaleString()} BDT`, 20, yPos);
-            }
-            yPos += 8;
-          });
-          yPos += 5;
-        }
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
-        // Monthly medicines
-        if (includeMonthly) {
-          const monthlyMedicines = allMedicines.filter(m => m.type === 'monthly');
-          if (monthlyMedicines.length > 0) {
-            if (yPos > 270) { doc.addPage(); yPos = 20; }
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text('MONTHLY MEDICINES', 14, yPos);
-            yPos += 8;
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(10);
-            monthlyMedicines.forEach((item, idx) => {
-              if (yPos > 270) { doc.addPage(); yPos = 20; }
-              let medName = `${idx + 1}. ${item.medicationName}`;
-              if (item.strength) medName += ` (${item.strength}) - ${item.memberName}`;
-              doc.text(medName, 16, yPos);
-              yPos += 6;
-              doc.setFontSize(9);
-              doc.text(`Schedule: ${item.dosage} tablet(s) × ${item.frequency}/day`, 20, yPos);
-              yPos += 5;
-              const packsDisplay = formatPacks(item.packs);
-              if (item.discount > 0) {
-                doc.text(`Monthly Qty: ${item.monthly} | Packs: ${packsDisplay} | Discount: ${item.discount.toFixed(1)}%`, 20, yPos);
-                yPos += 5;
-                doc.text(`Subtotal: ${item.subtotal.toLocaleString()} BDT | Final: ${item.cost.toLocaleString()} BDT`, 20, yPos);
-              } else {
-                doc.text(`Monthly Qty: ${item.monthly} | Packs: ${packsDisplay} | Cost: ${item.cost.toLocaleString()} BDT`, 20, yPos);
-              }
-              yPos += 8;
-            });
-          }
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 40;
+      let y = 60;
+
+      const now = new Date();
+      const dateStr = now.toLocaleString();
+
+      // Page background
+      doc.setFillColor(248, 250, 252);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+      // Header bar
+      doc.setFillColor(16, 185, 129); // emerald
+      doc.rect(0, 0, pageWidth, 70, 'F');
+      doc.setTextColor(255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.text('MediTrack', marginX, 30);
+      doc.setFontSize(13);
+      doc.text('Purchase List', marginX, 50);
+      doc.setFontSize(10);
+      doc.text(`Generated on: ${dateStr}`, pageWidth - marginX, 50, { align: 'right' });
+
+      // Summary card
+      y = 100;
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(209, 250, 229);
+      const summaryHeight = hidePrices ? 70 : 95;
+      doc.roundedRect(marginX, y - 18, pageWidth - marginX * 2, summaryHeight, 8, 8, 'FD');
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('Summary', marginX + 16, y - 2);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      let sy = y + 12;
+      doc.text(`Total medicines: ${allMedicines.length}`, marginX + 16, sy);
+      sy += 14;
+      doc.text(`Total items: ${formatPacks(totalPacks)}`, marginX + 16, sy);
+      if (!hidePrices) {
+        sy += 14;
+        doc.text(`Subtotal: ${subtotal.toLocaleString()} BDT`, marginX + 16, sy);
+        sy += 14;
+        if (globalDiscountValue > 0) {
+          doc.text(
+            `Global discount: ${globalDiscountValue.toFixed(1)}% (‑${globalDiscountAmount.toLocaleString()} BDT)`,
+            marginX + 16,
+            sy
+          );
+          sy += 14;
         }
+        doc.text(`Final cost: ${totalCost.toLocaleString()} BDT`, marginX + 16, sy);
       }
-      
-      doc.save(`purchase-list-${new Date().toISOString().split('T')[0]}.pdf`);
+
+      y = y + summaryHeight + 24;
+
+      const normalMedicines = allMedicines.filter((m) => m.type === 'normal');
+      const monthlyMedicines = includeMonthly ? allMedicines.filter((m) => m.type === 'monthly') : [];
+
+      const ensureSpace = (needed) => {
+        if (y + needed > pageHeight - 60) {
+          doc.addPage();
+          y = 60;
+        }
+      };
+
+      const drawSectionHeader = (title, accentColor) => {
+        ensureSpace(40);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+        doc.text(title, marginX, y);
+        y += 8;
+        doc.setDrawColor(226, 232, 240);
+        doc.line(marginX, y, pageWidth - marginX, y);
+        y += 14;
+      };
+
+      const drawTableHeader = (withPrices) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(71, 85, 105);
+        let x = marginX;
+        doc.text('#', x, y);
+        x += 18;
+        doc.text('Medicine', x, y);
+        x = marginX + 230;
+        doc.text('Qty', x, y);
+        x += 45;
+        doc.text('Packs', x, y);
+        if (withPrices) {
+          x += 50;
+          doc.text('Price', x, y);
+          x += 55;
+          doc.text('Disc %', x, y);
+          x += 50;
+          doc.text('Total', x, y);
+        }
+        y += 8;
+        doc.setDrawColor(226, 232, 240);
+        doc.line(marginX, y, pageWidth - marginX, y);
+        y += 10;
+      };
+
+      // Regular medicines
+      if (normalMedicines.length > 0) {
+        drawSectionHeader('Medicines', [37, 99, 235]); // blue accent
+        drawTableHeader(!hidePrices);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+
+        normalMedicines.forEach((item, idx) => {
+          ensureSpace(24);
+          let x = marginX;
+
+          doc.text(String(idx + 1), x, y);
+          x += 18;
+
+          let name = item.medicationName || '';
+          if (item.strength) name += ` (${item.strength})`;
+          const [mainName, ...rest] = doc.splitTextToSize(name, 190);
+          doc.text(mainName, x, y);
+          let rowHeight = 12;
+          if (rest.length) {
+            doc.setFontSize(8);
+            doc.text(rest.join(' '), x, y + 9);
+            rowHeight += 8;
+            doc.setFontSize(9);
+          }
+
+          x = marginX + 230;
+          doc.text(String(item.quantity), x, y);
+          x += 45;
+          doc.text(formatPacks(item.packs), x, y);
+
+          if (!hidePrices) {
+            x += 50;
+            doc.text(item.price.toLocaleString() + ' Tk', x, y);
+            x += 55;
+            doc.text(item.discount ? `${item.discount.toFixed(1)}%` : '-', x, y);
+            x += 50;
+            doc.text((item.cost || 0).toLocaleString() + ' Tk', x, y);
+          }
+
+          y += rowHeight;
+        });
+      }
+
+      // Monthly medicines
+      if (includeMonthly && monthlyMedicines.length > 0) {
+        y += 18;
+        drawSectionHeader('Monthly Medicines', [16, 185, 129]); // green accent
+        drawTableHeader(!hidePrices);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+
+        monthlyMedicines.forEach((item, idx) => {
+          ensureSpace(30);
+          let x = marginX;
+
+          doc.text(String(idx + 1), x, y);
+          x += 18;
+
+          let name = item.medicationName || '';
+          if (item.strength) name += ` (${item.strength})`;
+          if (item.memberName) name += ` – ${item.memberName}`;
+
+          const nameLines = doc.splitTextToSize(name, 190);
+          doc.text(nameLines[0], x, y);
+          let rowHeight = 12;
+
+          doc.setFontSize(8);
+          const schedule = `Schedule: ${item.dosage} tablet(s) × ${item.frequency}/day`;
+          const scheduleLines = doc.splitTextToSize(schedule, 190);
+          scheduleLines.forEach((ln, i) => {
+            doc.text(ln, x, y + 9 + i * 8);
+          });
+          rowHeight += scheduleLines.length * 8;
+          doc.setFontSize(9);
+
+          x = marginX + 230;
+          doc.text(String(item.monthly), x, y);
+          x += 45;
+          doc.text(formatPacks(item.packs), x, y);
+
+          if (!hidePrices) {
+            x += 50;
+            doc.text(item.price.toLocaleString() + ' Tk', x, y);
+            x += 55;
+            doc.text(item.discount ? `${item.discount.toFixed(1)}%` : '-', x, y);
+            x += 50;
+            doc.text((item.cost || 0).toLocaleString() + ' Tk', x, y);
+          }
+
+          y += rowHeight;
+        });
+      }
+
+      doc.save(`purchase-list-${now.toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('PDF generation failed. Please try downloading as text instead.');

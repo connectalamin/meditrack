@@ -416,6 +416,7 @@ export const generateMetricReportHTML = (data) => {
 
 /**
  * Generate HTML template for all vitals report
+ * Redesigned to match the newer colourful, card-based dashboard look.
  */
 export const generateAllVitalsReportHTML = (data) => {
   const { memberName, groupedData, generatedDate, totalRecords } = data;
@@ -436,88 +437,154 @@ export const generateAllVitalsReportHTML = (data) => {
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      color: #1e293b;
-      background: #ffffff;
+      color: #0f172a;
+      background: #0b1120;
       line-height: 1.6;
-      padding: 20px;
+      padding: 24px;
+    }
+
+    .page {
+      max-width: 820px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, #f8fafc 0%, #ecfdf5 45%, #f8fafc 100%);
+      border-radius: 18px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+      padding: 28px 32px 32px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
     }
     
     .header {
-      background: linear-gradient(135deg, #f5f7fa 0%, #e2e8f0 100%);
-      border-radius: 8px;
-      padding: 24px;
+      background: radial-gradient(circle at top left, #bbf7d0 0%, #ecfeff 35%, #e5e7eb 100%);
+      border-radius: 16px;
+      padding: 20px 24px;
       margin-bottom: 24px;
-      border: 1px solid #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.4);
     }
     
-    .header h1 {
-      font-size: 24px;
-      font-weight: 700;
-      color: #1e293b;
+    .header-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
       margin-bottom: 12px;
+    }
+
+    .title-block h1 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .title-sub {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #0369a1;
+      font-weight: 600;
+    }
+
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: rgba(15, 118, 110, 0.08);
+      color: #047857;
+      border: 1px solid rgba(16, 185, 129, 0.3);
     }
     
     .header-info {
       display: flex;
       flex-wrap: wrap;
-      gap: 24px;
-      font-size: 12px;
+      gap: 20px;
+      font-size: 11px;
       color: #64748b;
     }
     
     .header-info div {
       display: flex;
       flex-direction: column;
+      min-width: 120px;
     }
     
-    .header-info strong {
-      color: #1e293b;
-      margin-bottom: 2px;
+    .label {
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: #6b7280;
+      margin-bottom: 3px;
+      font-weight: 600;
+    }
+
+    .value {
+      font-size: 12px;
+      font-weight: 600;
+      color: #0f172a;
     }
     
     .metric-section {
-      margin-bottom: 32px;
+      margin-bottom: 26px;
       page-break-inside: avoid;
+      padding: 18px 20px 20px;
+      border-radius: 16px;
+      background: #ffffff;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
     }
     
     .metric-title {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 700;
-      color: #1e293b;
-      margin-bottom: 16px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #10b981;
+      color: #0f172a;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .metric-pill {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.06);
+      color: #0f766e;
+      border: 1px solid rgba(34, 197, 94, 0.35);
     }
     
     .metric-meta {
-      font-size: 11px;
-      color: #64748b;
-      margin-bottom: 12px;
+      font-size: 10px;
+      color: #6b7280;
+      margin-bottom: 14px;
     }
     
     .averages-box {
-      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-      border: 2px solid #10b981;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
+      background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 40%, #ecfeff 100%);
+      border-radius: 12px;
+      padding: 14px 16px 16px;
+      margin-bottom: 14px;
+      border: 1px solid rgba(5, 150, 105, 0.6);
     }
     
     .averages-title {
       font-size: 10px;
       font-weight: 700;
-      color: #059669;
+      color: #064e3b;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 12px;
+      letter-spacing: 0.18em;
+      margin-bottom: 10px;
     }
     
     .averages-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
+      gap: 14px;
     }
     
     .average-item {
@@ -527,72 +594,87 @@ export const generateAllVitalsReportHTML = (data) => {
     .average-label {
       font-size: 9px;
       font-weight: 600;
-      color: #1e293b;
+      color: #065f46;
       margin-bottom: 6px;
       text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
     
     .average-value {
       font-size: 16px;
-      font-weight: 700;
-      color: #1e293b;
-      margin-bottom: 3px;
+      font-weight: 800;
+      color: #022c22;
+      margin-bottom: 2px;
     }
     
     .average-meta {
       font-size: 8px;
-      color: #64748b;
+      color: #047857;
     }
     
     .no-data {
       font-size: 10px;
-      color: #94a3b8;
+      color: #0f172a;
       font-style: italic;
     }
     
     .table-container {
       overflow-x: auto;
-      margin-bottom: 16px;
+      margin-bottom: 2px;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
     }
     
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 11px;
+      font-size: 10px;
     }
     
     thead {
-      background: #f8fafc;
-      border-bottom: 2px solid #e2e8f0;
+      background: #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
     }
     
     th {
-      padding: 12px 8px;
+      padding: 8px 8px;
       text-align: left;
       font-weight: 600;
-      color: #1e293b;
+      color: #4b5563;
       text-transform: uppercase;
-      font-size: 10px;
-      letter-spacing: 0.5px;
+      font-size: 9px;
+      letter-spacing: 0.08em;
     }
     
     td {
-      padding: 10px 8px;
-      border-bottom: 1px solid #e2e8f0;
-      color: #334155;
+      padding: 7px 8px;
+      border-top: 1px solid #e5e7eb;
+      color: #111827;
+      background: #ffffff;
     }
     
-    tbody tr:hover {
-      background: #f8fafc;
+    tbody tr:nth-child(even) td {
+      background: #f9fafb;
+    }
+
+    .footer {
+      margin-top: 18px;
+      font-size: 9px;
+      text-align: center;
+      color: #6b7280;
     }
     
     @media print {
       body {
         padding: 0;
+        background: #ffffff;
       }
       
-      .header {
-        page-break-inside: avoid;
+      .page {
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
       }
       
       .metric-section {
@@ -611,101 +693,116 @@ export const generateAllVitalsReportHTML = (data) => {
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>VITAL REPORT</h1>
-    <div class="header-info">
-      <div>
-        <strong>Patient:</strong>
-        <span>${memberName}</span>
+  <div class="page">
+    <div class="header">
+      <div class="header-title-row">
+        <div class="title-block">
+          <h1>VITAL REPORT</h1>
+          <div class="title-sub">Clinical summary overview</div>
+        </div>
+        <div class="badge">Confidential health data</div>
       </div>
-      <div>
-        <strong>Generated:</strong>
-        <span>${generatedDate}</span>
-      </div>
-      <div>
-        <strong>Total Records:</strong>
-        <span>${totalRecords}</span>
-      </div>
-    </div>
-  </div>
-  
-  ${groupedData.map(({ type, records, displayUnit, timeAverages }) => {
-    const escapeHtml = (str) => {
-      if (!str) return '';
-      return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-    };
-    return `
-    <div class="metric-section">
-      <div class="metric-title">${escapeHtml(type)}</div>
-      <div class="metric-meta">
-        ${records.length} record${records.length !== 1 ? 's' : ''} • Unit: ${escapeHtml(displayUnit || 'N/A')}
-      </div>
-      ${timeAverages ? `
-      <div class="averages-box">
-        <div class="averages-title">Period Averages</div>
-        <div class="averages-grid">
-          <div class="average-item">
-            <div class="average-label">1 Week</div>
-            ${timeAverages.oneWeek.avg 
-              ? `<div class="average-value">${escapeHtml(timeAverages.oneWeek.avg)}</div>
-                 <div class="average-meta">${escapeHtml(displayUnit || '')} (${timeAverages.oneWeek.count} records)</div>`
-              : '<div class="no-data">No data</div>'
-            }
-          </div>
-          <div class="average-item">
-            <div class="average-label">1 Month</div>
-            ${timeAverages.oneMonth.avg 
-              ? `<div class="average-value">${escapeHtml(timeAverages.oneMonth.avg)}</div>
-                 <div class="average-meta">${escapeHtml(displayUnit || '')} (${timeAverages.oneMonth.count} records)</div>`
-              : '<div class="no-data">No data</div>'
-            }
-          </div>
-          <div class="average-item">
-            <div class="average-label">3 Months</div>
-            ${timeAverages.threeMonths.avg 
-              ? `<div class="average-value">${escapeHtml(timeAverages.threeMonths.avg)}</div>
-                 <div class="average-meta">${escapeHtml(displayUnit || '')} (${timeAverages.threeMonths.count} records)</div>`
-              : '<div class="no-data">No data</div>'
-            }
-          </div>
+      <div class="header-info">
+        <div>
+          <div class="label">Patient</div>
+          <div class="value">${memberName}</div>
+        </div>
+        <div>
+          <div class="label">Generated</div>
+          <div class="value">${generatedDate}</div>
+        </div>
+        <div>
+          <div class="label">Total Records</div>
+          <div class="value">${totalRecords}</div>
         </div>
       </div>
-      ` : ''}
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Value</th>
-              <th>Unit</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${records.map(record => {
-              const date = new Date(record.date);
-              const dateStr = date.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
-              });
-              const timeStr = escapeHtml(record.time || '-');
-              const displayValue = escapeHtml(String(record.displayValue || ''));
-              return `
-                <tr>
-                  <td>${dateStr}</td>
-                  <td>${timeStr}</td>
-                  <td>${displayValue}</td>
-                  <td>${escapeHtml(displayUnit || record.unit || '')}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
     </div>
-  `;
-  }).join('')}
+  
+    ${groupedData.map(({ type, records, displayUnit, timeAverages }) => {
+      const escapeHtml = (str) => {
+        if (!str) return '';
+        return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      };
+      return `
+      <div class="metric-section">
+        <div class="metric-title">
+          <span>${escapeHtml(type)}</span>
+          <span class="metric-pill">${records.length} record${records.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="metric-meta">
+          Unit: ${escapeHtml(displayUnit || 'N/A')}
+        </div>
+        ${timeAverages ? `
+        <div class="averages-box">
+          <div class="averages-title">Period averages</div>
+          <div class="averages-grid">
+            <div class="average-item">
+              <div class="average-label">1 Week</div>
+              ${timeAverages.oneWeek.avg 
+                ? `<div class="average-value">${escapeHtml(timeAverages.oneWeek.avg)}</div>
+                   <div class="average-meta">${escapeHtml(displayUnit || '')} (${timeAverages.oneWeek.count} records)</div>`
+                : '<div class="no-data">No data in last 7 days</div>'
+              }
+            </div>
+            <div class="average-item">
+              <div class="average-label">1 Month</div>
+              ${timeAverages.oneMonth.avg 
+                ? `<div class="average-value">${escapeHtml(timeAverages.oneMonth.avg)}</div>
+                   <div class="average-meta">${escapeHtml(displayUnit || '')} (${timeAverages.oneMonth.count} records)</div>`
+                : '<div class="no-data">No data in last 30 days</div>'
+              }
+            </div>
+            <div class="average-item">
+              <div class="average-label">3 Months</div>
+              ${timeAverages.threeMonths.avg 
+                ? `<div class="average-value">${escapeHtml(timeAverages.threeMonths.avg)}</div>
+                   <div class="average-meta">${escapeHtml(displayUnit || '')} (${timeAverages.threeMonths.count} records)</div>`
+                : '<div class="no-data">No data in last 90 days</div>'
+              }
+            </div>
+          </div>
+        </div>
+        ` : ''}
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Value</th>
+                <th>Unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${records.map(record => {
+                const date = new Date(record.date);
+                const dateStr = date.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                });
+                const timeStr = escapeHtml(record.time || '-');
+                const displayValue = escapeHtml(String(record.displayValue || ''));
+                return `
+                  <tr>
+                    <td>${dateStr}</td>
+                    <td>${timeStr}</td>
+                    <td>${displayValue}</td>
+                    <td>${escapeHtml(displayUnit || record.unit || '')}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    }).join('')}
+
+    <div class="footer">
+      Generated by MediTrack · This report is for informational purposes and does not replace professional medical advice.
+    </div>
+  </div>
 </body>
 </html>
   `.trim();

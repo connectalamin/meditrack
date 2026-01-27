@@ -207,24 +207,39 @@ const MedicationDatabaseTab = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">Global Medication Database</h2>
-          <p className="text-sm text-slate-500 dark:text-[#94a3b8] mt-1">Shared list of medicines for the family</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-[#34D399] mb-1">
+            Database
+          </p>
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-[#F8FAFC]">
+            Global Medication Database
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-[#94a3b8] mt-2">
+            Shared list of medicines for the family, searchable and filterable.
+          </p>
         </div>
-        <Button 
-          onClick={() => { resetForm(); setShowForm(true); }} 
-          className="whitespace-nowrap w-full sm:w-auto"
-        >
-          <Plus size={18} className="mr-2" />
-          {editingId ? 'Cancel Edit' : 'Add New Medication'}
-        </Button>
+        <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
+          <div className="text-xs text-slate-500 dark:text-[#94a3b8]">
+            Total medicines:{' '}
+            <span className="font-semibold text-slate-900 dark:text-[#F8FAFC]">
+              {medications.length}
+            </span>
+          </div>
+          <Button 
+            onClick={() => { resetForm(); setShowForm(true); }} 
+            className="whitespace-nowrap w-full sm:w-auto flex items-center gap-2 h-11 px-5"
+          >
+            <Plus size={18} />
+            {editingId ? 'Cancel Edit' : 'Add New Medication'}
+          </Button>
+        </div>
       </div>
 
       {/* Filters Card */}
-      <Card className="p-4 sm:p-6">
+      <Card className="p-4 sm:p-6 bg-white/90 dark:bg-[#1A202C]/90 border border-slate-200/80 dark:border-[#2D3748]/60 shadow-sm hover:shadow-md transition-shadow duration-200">
         <div className="space-y-4">
           {/* Search Bar */}
           <div className="relative">
@@ -236,7 +251,7 @@ const MedicationDatabaseTab = () => {
               placeholder="Search by name, generic name, category, or strength..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-slate-200 dark:border-[#27335D] bg-white dark:bg-[#111725] text-sm text-slate-900 dark:text-[#F8FAFC] placeholder-slate-400 dark:placeholder-[#64748b] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200/80 dark:border-[#2D3748]/70 bg-white/90 dark:bg-[#1A202C] text-sm text-slate-900 dark:text-[#F8FAFC] placeholder-slate-400 dark:placeholder-[#64748b] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all shadow-sm"
             />
             {searchTerm && (
               <button
@@ -327,7 +342,7 @@ const MedicationDatabaseTab = () => {
 
           {/* Active Filters Display */}
           {hasActiveFilters && (
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200 dark:border-[#27335D]">
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/70 dark:border-[#2D3748]/60">
               <span className="text-xs font-medium text-slate-500 dark:text-[#94a3b8]">Active filters:</span>
               {searchTerm && (
                 <Badge variant="info" className="text-xs">
@@ -377,18 +392,35 @@ const MedicationDatabaseTab = () => {
           )}
 
           {/* Results Count */}
-          <div className="text-sm text-slate-600 dark:text-[#94a3b8] pt-2 border-t border-slate-200 dark:border-[#27335D]">
-            Showing <span className="font-semibold text-slate-900 dark:text-[#F8FAFC]">{filteredMeds.length}</span> of{' '}
-            <span className="font-semibold text-slate-900 dark:text-[#F8FAFC]">{medications.length}</span> medicines
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600 dark:text-[#94a3b8] pt-3 border-t border-slate-200/70 dark:border-[#2D3748]/60">
+            <span>
+              Showing{' '}
+              <span className="font-semibold text-slate-900 dark:text-[#F8FAFC]">
+                {filteredMeds.length}
+              </span>{' '}
+              of{' '}
+              <span className="font-semibold text-slate-900 dark:text-[#F8FAFC]">
+                {medications.length}
+              </span>{' '}
+              medicines
+            </span>
+            {hasActiveFilters && (
+              <span className="text-xs text-slate-400 dark:text-[#64748b]">
+                Filters applied – adjust or clear to see all medicines.
+              </span>
+            )}
           </div>
         </div>
       </Card>
 
       {showForm && (
-        <Card>
-          <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-[#F8FAFC]">
+        <Card className="bg-white/90 dark:bg-[#1A202C]/90 border border-slate-200/80 dark:border-[#2D3748]/60 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <h3 className="text-lg font-semibold mb-2 text-slate-900 dark:text-[#F8FAFC]">
             {editingId ? 'Edit Medication' : 'Add New Medication'}
           </h3>
+          <p className="text-xs text-slate-500 dark:text-[#94a3b8] mb-4">
+            Store the key details for each medication so you can reuse them across plans and purchase lists.
+          </p>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Input label="Brand Name" placeholder="e.g. Napa" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
@@ -418,9 +450,11 @@ const MedicationDatabaseTab = () => {
               <Input label="Pack Size Description (Optional)" placeholder="e.g. Strip of 10 Tablets" value={formData.packSizeDescription} onChange={e => setFormData({...formData, packSizeDescription: e.target.value})} />
               <Input label="Primary Use (Optional)" placeholder="e.g. Fever, mild headache" value={formData.primaryUse} onChange={e => setFormData({...formData, primaryUse: e.target.value})} />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>
-              <Button type="submit">{editingId ? 'Update Medication' : 'Save to Database'}</Button>
+              <Button type="submit" className="flex items-center gap-2">
+                {editingId ? 'Update Medication' : 'Save to Database'}
+              </Button>
             </div>
           </form>
         </Card>
@@ -428,7 +462,7 @@ const MedicationDatabaseTab = () => {
 
       {/* Medications Grid */}
       {paginatedMeds.length === 0 ? (
-        <Card className="p-12 text-center">
+        <Card className="p-12 text-center bg-white/90 dark:bg-[#1A202C]/90 border border-slate-200/80 dark:border-[#2D3748]/60 shadow-sm">
           <div className="max-w-md mx-auto">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 dark:bg-[#27335D] flex items-center justify-center">
               <Search className="text-slate-400 dark:text-[#94a3b8]" size={24} />
@@ -456,12 +490,15 @@ const MedicationDatabaseTab = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginatedMeds.map(med => (
-            <Card key={med.id} className="p-5 flex flex-col justify-between group hover:border-emerald-500/50 hover:shadow-md transition-all duration-200">
+            <Card 
+              key={med.id} 
+              className="p-5 flex flex-col justify-between group bg-white/90 dark:bg-[#1A202C]/90 border border-slate-200/80 dark:border-[#2D3748]/60 shadow-sm hover:shadow-md hover:border-emerald-500/50 dark:hover:border-emerald-400/60 hover:-translate-y-0.5 transition-all duration-200"
+            >
               <div className="flex-1">
                 {/* Header with Actions */}
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1 min-w-0 pr-2">
-                    <h3 className="font-bold text-base text-slate-900 dark:text-[#F8FAFC] truncate" title={med.name}>
+                    <h3 className="font-semibold text-base text-slate-900 dark:text-[#F8FAFC] truncate" title={med.name}>
                       {med.name}
                     </h3>
                     {med.genericName && (
@@ -512,7 +549,7 @@ const MedicationDatabaseTab = () => {
                     </span>
                   </div>
                   {med.primaryUse && (
-                    <div className="pt-2 border-t border-slate-100 dark:border-[#27335D]">
+                    <div className="pt-2 border-t border-slate-200/70 dark:border-[#2D3748]/60">
                       <p className="text-xs text-slate-500 dark:text-[#94a3b8] line-clamp-2" title={med.primaryUse}>
                         {med.primaryUse}
                       </p>
@@ -522,7 +559,7 @@ const MedicationDatabaseTab = () => {
               </div>
 
               {/* Footer with Price */}
-              <div className="pt-4 border-t border-slate-100 dark:border-[#27335D]">
+              <div className="pt-4 border-t border-slate-200/70 dark:border-[#2D3748]/60">
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-slate-500 dark:text-[#94a3b8]">Price</span>
                   <span className={`font-bold text-base ${
@@ -563,7 +600,7 @@ const MedicationDatabaseTab = () => {
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#27335D] text-sm font-medium text-slate-700 dark:text-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-[#27335D] transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-slate-200/80 dark:border-[#2D3748]/70 text-sm font-medium text-slate-700 dark:text-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-[#2A3741] transition-colors"
               >
                 Previous
               </button>
@@ -588,7 +625,7 @@ const MedicationDatabaseTab = () => {
                       className={`min-w-[36px] h-9 rounded-lg text-sm font-medium flex items-center justify-center border transition-colors ${
                         isActive
                           ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-[#34D399] dark:bg-[#34D399]/10 dark:text-[#34D399]'
-                          : 'border-slate-200 dark:border-[#27335D] text-slate-700 dark:text-[#F8FAFC] hover:bg-slate-50 dark:hover:bg-[#27335D]'
+                          : 'border-slate-200/80 dark:border-[#2D3748]/70 text-slate-700 dark:text-[#F8FAFC] hover:bg-slate-50 dark:hover:bg-[#2A3741]'
                       }`}
                     >
                       {page}
@@ -601,7 +638,7 @@ const MedicationDatabaseTab = () => {
                     <button
                       type="button"
                       onClick={() => setCurrentPage(totalPages)}
-                      className="min-w-[36px] h-9 rounded-lg text-sm font-medium flex items-center justify-center border border-slate-200 dark:border-[#27335D] text-slate-700 dark:text-[#F8FAFC] hover:bg-slate-50 dark:hover:bg-[#27335D] transition-colors"
+                      className="min-w-[36px] h-9 rounded-lg text-sm font-medium flex items-center justify-center border border-slate-200/80 dark:border-[#2D3748]/70 text-slate-700 dark:text-[#F8FAFC] hover:bg-slate-50 dark:hover:bg-[#2A3741] transition-colors"
                     >
                       {totalPages}
                     </button>
@@ -612,7 +649,7 @@ const MedicationDatabaseTab = () => {
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#27335D] text-sm font-medium text-slate-700 dark:text-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-[#27335D] transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-slate-200/80 dark:border-[#2D3748]/70 text-sm font-medium text-slate-700 dark:text-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-[#2A3741] transition-colors"
               >
                 Next
               </button>

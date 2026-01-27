@@ -91,36 +91,62 @@ const FamilyTab = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-[#F8FAFC]">Family Members</h2>
-          <p className="text-sm text-slate-500 dark:text-[#94a3b8]">Select a member to view their profile, plans, and reports</p>
+          <p className="text-sm text-slate-500 dark:text-[#94a3b8]">
+            Select a member to view their profile, plans, and reports
+          </p>
         </div>
-        <Button onClick={() => { resetForm(); setShowForm(true); }}>
-          {showForm ? <X size={18} /> : <Plus size={18} />}
-          {showForm ? 'Cancel' : 'Add Member'}
-        </Button>
+        {!showForm && (
+          <Button onClick={() => { resetForm(); setShowForm(true); }}>
+            <Plus size={18} />
+            Add Member
+          </Button>
+        )}
       </div>
 
       {showForm && (
-        <Card>
-          <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-[#F8FAFC]">
-            {editingId ? 'Edit Family Member' : 'Add New Family Member'}
-          </h3>
-          <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1 w-full">
-              <Input label="Full Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="John Doe" />
+        <Card className="bg-white/90 dark:bg-[#020617]/90 border-0 shadow-sm p-4">
+          <div className="mb-3">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-[#F8FAFC]">
+              {editingId ? 'Edit Family Member' : 'Add New Family Member'}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-[#94a3b8] mt-1">
+              Store basic details so you can attach plans and documents.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Input
+                label="Full Name"
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                placeholder="John Doe"
+              />
+              <Input
+                label="Relationship"
+                value={formData.relation}
+                onChange={e => setFormData({ ...formData, relation: e.target.value })}
+                placeholder="Spouse, Child…"
+              />
+              <Input
+                label="Age"
+                value={formData.age}
+                onChange={e => setFormData({ ...formData, age: e.target.value })}
+                placeholder="32"
+              />
             </div>
-            <div className="flex-1 w-full">
-              <Input label="Relationship" value={formData.relation} onChange={e => setFormData({...formData, relation: e.target.value})} placeholder="Spouse, Child..." />
-            </div>
-            <div className="w-24">
-              <Input label="Age" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} placeholder="32" />
-            </div>
-            <div className="mb-4 flex gap-2">
-              <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>
-              <Button type="submit">{editingId ? 'Update' : 'Add'}</Button>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="secondary" onClick={resetForm}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingId ? 'Update' : 'Add'}
+              </Button>
             </div>
           </form>
         </Card>
@@ -131,14 +157,14 @@ const FamilyTab = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mx-auto"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {family.map(member => (
           <div 
             key={member.id} 
             onClick={() => setSelectedMember(member)} 
-            className="bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] p-6 rounded-xl flex flex-col items-center text-center relative group hover:border-emerald-500/50 dark:hover:border-[#34D399]/50 transition-all shadow-sm dark:shadow-none cursor-pointer"
+            className="bg-white dark:bg-[#1B2430] border border-slate-200 dark:border-[#27335D] p-4 rounded-xl flex flex-col items-center text-center relative group hover:border-emerald-500/50 dark:hover:border-[#34D399]/50 transition-all shadow-sm dark:shadow-none cursor-pointer"
           >
-            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
                 onClick={(e) => { e.stopPropagation(); handleEdit(member); }} 
                 className="text-slate-400 dark:text-[#94a3b8] hover:text-emerald-500 transition-colors"
@@ -156,10 +182,10 @@ const FamilyTab = () => {
                 </button>
               )}
             </div>
-            <div className="h-20 w-20 rounded-full bg-slate-100 dark:bg-[#27335D] flex items-center justify-center mb-4 text-slate-600 dark:text-[#F8FAFC]">
-              <User size={32} />
+            <div className="h-16 w-16 rounded-full bg-slate-100 dark:bg-[#27335D] flex items-center justify-center mb-3 text-slate-600 dark:text-[#F8FAFC]">
+              <User size={24} />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-[#F8FAFC]">{member.name}</h3>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-[#F8FAFC] mb-1">{member.name}</h3>
             <p className="text-emerald-600 dark:text-[#34D399] text-sm font-medium mb-1">{member.relation}</p>
             {!isOwnMember(member) ? (
               <div className="flex flex-col items-center gap-1 mt-0.5">
@@ -176,7 +202,7 @@ const FamilyTab = () => {
               // Invisible placeholder line so the "View Profile" button lines up
               <p className="text-xs mt-0.5 opacity-0 select-none">placeholder</p>
             )}
-            <Button variant="outline" className="w-full text-xs h-8 mt-4">View Profile</Button>
+            <Button variant="outline" className="w-full text-xs h-7 mt-3">View Profile</Button>
           </div>
         ))}
         </div>

@@ -4,15 +4,14 @@ import QueryProvider from './lib/QueryProvider';
 import App from './App';
 import './index.css';
 
-if ('serviceWorker' in navigator) {
+// Only register the service worker in production so local dev (Vite) doesn't
+// get a cached shell that can cause unexpected full-page reloads.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
       .then((registration) => {
-        // Service worker registered successfully
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Service worker registered:', registration);
-        }
+        console.log('Service worker registered:', registration);
       })
       .catch((error) => {
         console.error('Service worker registration failed:', error);

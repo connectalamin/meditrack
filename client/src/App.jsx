@@ -51,7 +51,13 @@ const MediTrackApp = () => {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-[#111725]' : 'bg-slate-50'}`}>
+      <div
+        className={`min-h-screen flex items-center justify-center ${
+          theme === 'dark'
+            ? 'bg-gradient-to-br from-[#020617] via-[#020617] to-[#020617]'
+            : 'bg-gradient-to-br from-slate-50 via-emerald-50/25 to-slate-50'
+        }`}
+      >
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
       </div>
     );
@@ -64,7 +70,7 @@ const MediTrackApp = () => {
 
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} min-h-screen transition-colors duration-300`}>
-      <div className="min-h-screen bg-slate-50 dark:bg-[#111725] text-slate-900 dark:text-[#F8FAFC] font-sans selection:bg-emerald-500/30 selection:text-emerald-900 dark:selection:bg-[#34D399] dark:selection:text-[#111725]">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/25 to-slate-50 dark:from-[#020617] dark:via-[#020617] dark:to-[#020617] text-slate-900 dark:text-[#F8FAFC] font-sans selection:bg-emerald-500/30 selection:text-emerald-900 dark:selection:bg-[#34D399] dark:selection:text-[#111725]">
         <InstallAndStatusBanner />
         {user && view === 'dashboard' ? (
           <DashboardLayout 

@@ -5,7 +5,7 @@ import FeatureCard from './FeatureCard';
 const LandingPage = ({ setView }) => (
   <div className="flex-1">
     {/* Hero */}
-    <section className="py-20 px-6 text-center relative overflow-hidden bg-slate-50 dark:bg-[#111725]">
+    <section className="py-20 px-6 text-center relative overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
       <div className="relative z-10 max-w-4xl mx-auto">
         <h1 className="text-5xl md:text-7xl font-bold mt-6 mb-6 text-slate-900 dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-[#F8FAFC] dark:to-[#94a3b8]">
@@ -21,7 +21,7 @@ const LandingPage = ({ setView }) => (
     </section>
 
     {/* Features Grid */}
-    <section className="py-20 px-6 bg-white dark:bg-[#0B101B]">
+    <section className="py-20 px-6">
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <FeatureCard 
