@@ -28,8 +28,9 @@
     "imagekit": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
+    "@sparticuz/chromium": "^131.0.0",
     "pg": "^8.11.3",
-    "puppeteer": "^24.32.0",
+    "puppeteer-core": "^24.32.0",
     "sharp": "^0.34.5",
     "zod": "^3.22.4"
   },

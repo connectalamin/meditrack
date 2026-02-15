@@ -1,4 +1,9 @@
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
+
+// Keep Chromium binary compressed to stay within Vercel size limits
+chromium.setHeadlessMode = true;
+chromium.setGraphicsMode = false;
 
 /**
  * Generate PDF from HTML string using Puppeteer
@@ -16,16 +21,10 @@ export const generatePDFFromHTML = async (html, options = {}) => {
     // Launch browser with error handling
     try {
       browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--disable-gpu',
-          '--disable-web-security'
-        ],
-        timeout: 60000 // 60 second timeout for browser launch
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
       });
       console.log('Browser launched successfully');
     } catch (launchError) {
